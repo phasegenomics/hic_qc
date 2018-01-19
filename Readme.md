@@ -20,10 +20,13 @@ Some dependencies such as matplotlib don't play nicely with all pythons, such th
 
 ## Usage
 No installation should be required, simply clone the repo:
-`git clone [repo_name] && cd [repo_name]`
+
+`git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist`
 
 You can run the script in a terminal
+
 `$ python bam_to_mate_hist.py -b input.bam -n num_reads_to_use`
+
 where `input.bam` is your BAM file from aligning Hi-C reads to your reference, and `num_reads_to_use` is just the number of reads you want to sample from the BAM file (default 1 million; assuming there are this many reads in the file). 
 
 The script will write plots in PDF format to the file `Read_mate_dist.pdf` in the working directory.
