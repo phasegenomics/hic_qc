@@ -16,7 +16,7 @@ These are installed with pip, e.g.:
 
 We include a `requirements.txt` file with these dependencies, which should be installed if you follow the instructions in the Usage section below.
 
-I've tested this script on MacOSX/Linux. 
+I've tested this script on MacOSX and Ubuntu Linux. 
 
 Some dependencies such as matplotlib don't play nicely with all pythons, such that some pythons in e.g. virtualenvs may not work. In this case you can just deactivate the virtualenv. 
 
