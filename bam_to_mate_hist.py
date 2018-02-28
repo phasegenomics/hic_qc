@@ -103,4 +103,7 @@ if __name__ == "__main__":
 		num_reads, bamfile_handle
 		)
 	dists = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle)
+	print "Counts of zero distances (many is a sign of bad prep)"
+	unique, counts = np.unique(dists, return_counts=True)
+	print dict(zip(unique, counts))[0], "of total", len(dists)
 	make_histograms(dists=dists, bamfile_handle=bamfile_handle)
