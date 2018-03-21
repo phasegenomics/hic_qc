@@ -32,3 +32,17 @@ You can run the script in a terminal
 where `input.bam` is your BAM file from aligning Hi-C reads to your reference, and `num_reads_to_use` is just the number of reads you want to sample from the BAM file (default 1 million; assuming there are this many reads in the file). 
 
 The script will write plots in PDF format to the file `Read_mate_dist.pdf` in the working directory.
+
+The script will also quantify some basic quantitative QC metrics.
+
+## Interpreting results
+Histogram plots should show some characteristic features:
+* Substantial long-range contacts (note that contact distance is bounded by the assembly. You will want to see at least some contacts approximately as long as your longest contig. 
+* Gradual drop-off in signal with increasing distance (in log space). Choppiness or spikes in the distribution may indicate problems, unless it can be attributed to sampling error due to (very) small numbers of reads. Periodicity in the distribution with distance often indicates problems.
+* The leftmost spike of mates mapping very close is always the most prominent feature in the plot. However, it should not be too much larger than the rest of the distribution, or you are not having enough long-distance contacts. A dropoff of 3-4 orders of magnitude in the 0-20KB plot is the most you want to see in that sudden dropoff. Ideally it would be only 1-2 orders of magnitude dropoff in the 0-2KB range.
+* One statistic printed by the script is the number of read pairs with mates mapping to exactly the same position (distance == 0). We observe these reads at some rate all the time, but they are especially abundant when there is a problem. This proportion should be small, no more than 10% and ideally much smaller. 
+
+## What do I do if there is a problem?
+Problems observed in QC may indicate an issue either with the Hi-C reads or the assembly used for alignments. If the assembly is bad or e.g. comes from a distantly related organism or set of organisms, you should expect to see artifacts in the alignment of Hi-C reads. 
+
+If the issue is the reads, you can try filtering your read alignments, either removing bad contigs or low-confidence reads. Our tool `matlock` has utilities for doing this. 
