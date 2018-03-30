@@ -30,24 +30,29 @@ def parse_args(desc):
                         help="Number of reads from bam file to use. default: 1000000")
 	parser.add_argument("-b", "--bam_file", required=True, 
 	help = "BAM file to evaluate for QC")
+	parser.add_argument("--count_diff_refname_stub", default=False, action="store_true",
+		help="Can be used to QC differently given reference name formatting. For internal use.")
 	args = parser.parse_args()
 	return vars(args)
 
-def parse_bam_file(bamfile_handle, num_reads):
+def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub = False):
 	'''Parse a bam file, collect distances between mates in each read pair
 	Args:
 		bamfile_handle (str): path to bamfile to read
 		num_reads (int): maximum number of reads to use from file (if there are so many 
 		reads in the file). 
+		count_from_stub (bool): whether to 
 	Returns:
+		diff_chr (int): number of reads mapping between contigs/chromosomes
 		dists (numpy array of ints): distances between mates.
 	'''
 	num = 0
 	dists = np.empty([num_reads,1], dtype=int)
-	
 	last_read = ""
 	bamfile = pysam.AlignmentFile(bamfile_handle, 'rb')
+	refs = bamfile.references 
 	diff_chr = 0
+	diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
 	for read in bamfile:
 		if num >= num_reads:
 			break
@@ -58,15 +63,22 @@ def parse_bam_file(bamfile_handle, num_reads):
 		ref2 = read.next_reference_id
 		if ref1 != ref2:
 			diff_chr += 1
-			continue
-		read1_pos = read.reference_start
-		read2_pos = read.next_reference_start
-		dist = str(abs(read1_pos - read2_pos))
-		dists[num] = dist
+			if count_diff_refname_stub:
+				ref1_stub = refs[ref1].split(".")[0]
+				ref2_stub = refs[ref2].split(".")[0]
+				#print ref1_stub, ref2_stub
+				if ref1_stub != ref2_stub:
+					diff_stub += 1
+		else:
+			read1_pos = read.reference_start
+			read2_pos = read.next_reference_start
+			dist = str(abs(read1_pos - read2_pos))
+			dists[num] = dist			
 		num += 1
 
+			
 	dists = dists[0:num+1]
-	return diff_chr, dists
+	return diff_chr, dists, diff_stub
 
 def make_histograms(dists, bamfile_handle, num_reads):
 	'''make the read distance histograms
@@ -103,11 +115,13 @@ if __name__ == "__main__":
 	c_args = parse_args(__file__)
 	num_reads = int(c_args["num_reads"])
 	bamfile_handle = c_args["bam_file"]
+	count_diff_refname_stub = c_args["count_diff_refname_stub"]
 	print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots"\
 	" are written to ./Read_mate_dist.pdf.".format(
 		num_reads, bamfile_handle
 		)
-	diff_chr, dists = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle)
+	diff_chr, dists, diff_stub = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle, 
+		count_diff_refname_stub=count_diff_refname_stub)
 	print "Counts of zero distances (many is a sign of bad prep):"
 	unique, counts = np.unique(dists, return_counts=True)
 	#print unique[-100:-1]
@@ -117,6 +131,9 @@ if __name__ == "__main__":
 	print above_10k, "of total", len(dists), ", fraction", float(above_10k) / len(dists)
 	print "Count of read pairs with mates mapping to different chromosomes (sign of good prep IF same genome):"
 	print diff_chr, "of total", len(dists), ", fraction", float(diff_chr) / len(dists)
-	
+	if count_diff_refname_stub:
+		print "Count of read pairs with mates mapping to different refs (sign of bad prep potentially):"
+		print diff_stub, "of total", len(dists), ", fraction", float(diff_stub) / len(dists)
+		
 	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads)
 	
