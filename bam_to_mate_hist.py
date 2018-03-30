@@ -47,6 +47,7 @@ def parse_bam_file(bamfile_handle, num_reads):
 	
 	last_read = ""
 	bamfile = pysam.AlignmentFile(bamfile_handle, 'rb')
+	diff_chr = 0
 	for read in bamfile:
 		if num >= num_reads:
 			break
@@ -56,6 +57,7 @@ def parse_bam_file(bamfile_handle, num_reads):
 		ref1 = read.reference_id
 		ref2 = read.next_reference_id
 		if ref1 != ref2:
+			diff_chr += 1
 			continue
 		read1_pos = read.reference_start
 		read2_pos = read.next_reference_start
@@ -64,9 +66,9 @@ def parse_bam_file(bamfile_handle, num_reads):
 		num += 1
 
 	dists = dists[0:num+1]
-	return dists
+	return diff_chr, dists
 
-def make_histograms(dists, bamfile_handle):
+def make_histograms(dists, bamfile_handle, num_reads):
 	'''make the read distance histograms
 	Args:
 		dists (numpy array of ints): Distances to plot in histogram.
@@ -76,6 +78,8 @@ def make_histograms(dists, bamfile_handle):
 	with PdfPages("Read_mate_dist.pdf") as pdf:
 		fig1 = plt.figure()
 		plt.hist(dists, bins=40)
+		ax = fig1.add_subplot(111)
+		ax.set_ylim(0.5, num_reads * 2)
 		plt.yscale("log", nonposy="clip")
 		plt.title("Mate distance distribution for sample\n" + bamfile_handle+"\nfor first " + str(num_reads)+ " reads")
 		plt.xlabel("Distance between read pair mates in Hi-C mapping")
@@ -87,6 +91,7 @@ def make_histograms(dists, bamfile_handle):
 		plt.hist(dists, bins=xrange(0,20000, 500))
 		ax = fig2.add_subplot(111)
 		ax.set_xlim(0, 20000)
+		ax.set_ylim(0.5, num_reads * 2)
 		plt.yscale("log", nonposy="clip")
 		plt.title("Mate distance distribution for sample\n" + bamfile_handle+"\nfor first " + str(num_reads)+ " reads")
 		plt.xlabel("Distance between read pair mates in Hi-C mapping")
@@ -102,8 +107,16 @@ if __name__ == "__main__":
 	" are written to ./Read_mate_dist.pdf.".format(
 		num_reads, bamfile_handle
 		)
-	dists = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle)
-	print "Counts of zero distances (many is a sign of bad prep)"
+	diff_chr, dists = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle)
+	print "Counts of zero distances (many is a sign of bad prep):"
 	unique, counts = np.unique(dists, return_counts=True)
+	#print unique[-100:-1]
 	print dict(zip(unique, counts))[0], "of total", len(dists)
-	make_histograms(dists=dists, bamfile_handle=bamfile_handle)
+	above_10k = len([dist for dist in dists if dist > 10000])
+	print "Count of read pairs with distance > 10KB (many is a sign of good prep):"
+	print above_10k, "of total", len(dists), ", fraction", float(above_10k) / len(dists)
+	print "Count of read pairs with mates mapping to different chromosomes (sign of good prep IF same genome):"
+	print diff_chr, "of total", len(dists), ", fraction", float(diff_chr) / len(dists)
+	
+	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads)
+	
