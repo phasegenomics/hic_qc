@@ -129,10 +129,10 @@ if __name__ == "__main__":
 	above_10k = len([dist for dist in dists if dist > 10000])
 	print "Count of read pairs with distance > 10KB (many is a sign of good prep):"
 	print above_10k, "of total", len(dists), ", fraction", float(above_10k) / len(dists)
-	print "Count of read pairs with mates mapping to different chromosomes (sign of good prep IF same genome):"
+	print "Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):"
 	print diff_chr, "of total", len(dists), ", fraction", float(diff_chr) / len(dists)
 	if count_diff_refname_stub:
-		print "Count of read pairs with mates mapping to different refs (sign of bad prep potentially):"
+		print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad prep potentially):"
 		print diff_stub, "of total", len(dists), ", fraction", float(diff_stub) / len(dists)
 		
 	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads)
