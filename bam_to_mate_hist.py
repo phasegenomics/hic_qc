@@ -53,14 +53,22 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub = False):
 	refs = bamfile.references 
 	diff_chr = 0
 	diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
+	split_reads = 0
 	for read in bamfile:
 		if num >= num_reads:
 			break
+		# read 2 gives info only for split reads
 		if read.qname == last_read:
+			if "S" in read.cigarstring:
+				split_reads += 1
 			continue
 		last_read = read.qname
 		ref1 = read.reference_id
 		ref2 = read.next_reference_id
+		# count split reads
+		if "S" in read.cigarstring:
+			split_reads += 1
+			
 		if ref1 != ref2:
 			diff_chr += 1
 			if count_diff_refname_stub:
@@ -78,7 +86,7 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub = False):
 
 			
 	dists = dists[0:num+1]
-	return diff_chr, dists, diff_stub
+	return diff_chr, dists, diff_stub, split_reads
 
 def make_histograms(dists, bamfile_handle, num_reads):
 	'''make the read distance histograms
@@ -120,17 +128,20 @@ if __name__ == "__main__":
 	" are written to ./Read_mate_dist.pdf.".format(
 		num_reads, bamfile_handle
 		)
-	diff_chr, dists, diff_stub = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle, 
+	diff_chr, dists, diff_stub, split_reads = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle, 
 		count_diff_refname_stub=count_diff_refname_stub)
 	print "Counts of zero distances (many is a sign of bad prep):"
 	unique, counts = np.unique(dists, return_counts=True)
 	#print unique[-100:-1]
-	print dict(zip(unique, counts))[0], "of total", len(dists)
+	zero_dist = dict(zip(unique, counts))[0]
+	print zero_dist, "of total", len(dists), "fraction ", float(zero_dist) / len(dists)
 	above_10k = len([dist for dist in dists if dist > 10000])
 	print "Count of read pairs with distance > 10KB (many is a sign of good prep):"
-	print above_10k, "of total", len(dists), ", fraction", float(above_10k) / len(dists)
+	print above_10k, "of total", len(dists), ", fraction ", float(above_10k) / len(dists)
 	print "Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):"
-	print diff_chr, "of total", len(dists), ", fraction", float(diff_chr) / len(dists)
+	print diff_chr, "of total", len(dists), ", fraction ", float(diff_chr) / len(dists)
+	print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
+	print split_reads, "of total", len(dists)*2, ", fraction ", float(split_reads) / float(len(dists)*2)
 	if count_diff_refname_stub:
 		print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad prep potentially):"
 		print diff_stub, "of total", len(dists), ", fraction", float(diff_stub) / len(dists)
