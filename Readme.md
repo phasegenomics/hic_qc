@@ -5,7 +5,7 @@ This script is intended as a simple QC method for Hi-C libraries, based on reads
 Hi-C connectivity drops off in approximately a power-law with increasing linear sequence distance. Consequently, one expects Hi-C reads to follow a characteristic distribution, wherein there is a spike of many read pairs at distances close to zero, which drops off smoothly (in log space) with increasing distance. If there are odd spikes or discontinuities, there may be a problem either with the library or the assembly.
 
 ## Dependencies
-* python2.7
+* python2.7 (mostly tested using 2.7.10)
 * numpy
 * pysam
 * matplotlib
@@ -18,7 +18,7 @@ We include a `requirements.txt` file with these dependencies, which should be in
 
 I've tested this script on MacOSX and Ubuntu Linux. 
 
-Some dependencies such as matplotlib don't play nicely with all pythons, such that some pythons in e.g. virtualenvs may not work. In this case you can just deactivate the virtualenv. 
+Some dependencies such as matplotlib don't play nicely with all pythons, such that some pythons in e.g. virtualenvs may not work. In that specific case you can just deactivate the virtualenv. 
 
 ## Usage
 For installation, run this statement in a terminal:
@@ -44,6 +44,7 @@ Histogram plots should show some characteristic features:
 * Number of read pairs with mates mapping to exactly the same position (distance == 0). These are bad. We observe these reads at some rate all the time, but they are especially abundant when there is a problem. This proportion should be small, no more than 10% and ideally much smaller. 
 * Number of read pairs with mates mapping >10KB apart. These are good. We would ideally like to see lots of very long-distance contacts between mates, as that is a sign of strong Hi-C signal. On the order of 0.5-5% is reasonable, though it depends on the assembly.
 * Number of read pairs with mates mapping to different contigs/chromosomes. These are good if they represent contacts within a cell, but bad if they represent noise or contacts between cells (e.g. for metagenomic data). On the order of 5-20% seems standard, again it depends on the assembly.
+* Number of split reads. These are good, usually, as they hopefully represent Hi-C junctions and thus successful Hi-C. There are of course other reasons why a read might be split.
 
 ## What do I do if there is a problem?
 Problems observed in QC may indicate an issue either with the Hi-C reads or the assembly used for alignments. If the assembly is bad or e.g. comes from a distantly related organism or set of organisms, you should expect to see artifacts in the alignment of Hi-C reads. 
