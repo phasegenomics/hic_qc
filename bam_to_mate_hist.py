@@ -141,7 +141,7 @@ if __name__ == "__main__":
 	print "Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):"
 	print diff_chr, "of total", len(dists), ", fraction ", float(diff_chr) / len(dists)
 	print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
-	print split_reads, "of total", len(dists)*2, ", fraction ", float(split_reads) / float(len(dists)*2)
+	print split_reads, "of total", len(dists)*2, ", fraction ", split_reads / float(len(dists)*2)
 	if count_diff_refname_stub:
 		print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad prep potentially):"
 		print diff_stub, "of total", len(dists), ", fraction", float(diff_stub) / len(dists)
