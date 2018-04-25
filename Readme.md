@@ -45,6 +45,8 @@ Histogram plots should show some characteristic features:
 * Number of read pairs with mates mapping >10KB apart. These are good. We would ideally like to see lots of very long-distance contacts between mates, as that is a sign of strong Hi-C signal. On the order of 0.5-5% is reasonable, though it depends on the assembly.
 * Number of read pairs with mates mapping to different contigs/chromosomes. These are good if they represent contacts within a cell, but bad if they represent noise or contacts between cells (e.g. for metagenomic data). On the order of 5-20% seems standard, again it depends on the assembly.
 * Number of split reads. These are good, usually, as they hopefully represent Hi-C junctions and thus successful Hi-C. There are of course other reasons why a read might be split.
+### Example histograms
+The collateral folder includes several histograms which serve as examples of what is expected for a good Hi-C library.
 
 ## What do I do if there is a problem?
 Problems observed in QC may indicate an issue either with the Hi-C reads or the assembly used for alignments. If the assembly is bad or e.g. comes from a distantly related organism or set of organisms, you should expect to see artifacts in the alignment of Hi-C reads. 
