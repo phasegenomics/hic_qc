@@ -32,7 +32,12 @@ def parse_args(desc):
 	help = "BAM file to evaluate for QC")
 	parser.add_argument("--count_diff_refname_stub", default=False, action="store_true",
 		help="Can be used to QC differently given reference name formatting. For internal use.")
+	parser.add_argument("--outpdf_name", "-o", default="Read_mate_dist.pdf", type=str,
+		help="Path to which to write PDF file.")
+
 	args = parser.parse_args()
+	
+	
 	return vars(args)
 
 def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub = False):
@@ -88,14 +93,14 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub = False):
 	dists = dists[0:num+1]
 	return diff_chr, dists, diff_stub, split_reads
 
-def make_histograms(dists, bamfile_handle, num_reads):
+def make_histograms(dists, bamfile_handle, num_reads, outpdf_name):
 	'''make the read distance histograms
 	Args:
 		dists (numpy array of ints): Distances to plot in histogram.
 		bamfile_handle (str): path to bamfile of dists
 		'''
 	num_reads = len(dists)
-	with PdfPages("Read_mate_dist.pdf") as pdf:
+	with PdfPages(outpdf_name) as pdf:
 		fig1 = plt.figure()
 		plt.hist(dists, bins=40)
 		ax = fig1.add_subplot(111)
@@ -123,10 +128,11 @@ if __name__ == "__main__":
 	c_args = parse_args(__file__)
 	num_reads = int(c_args["num_reads"])
 	bamfile_handle = c_args["bam_file"]
+	outpdf_name = c_args["outpdf_name"]
 	count_diff_refname_stub = c_args["count_diff_refname_stub"]
 	print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots"\
-	" are written to ./Read_mate_dist.pdf.".format(
-		num_reads, bamfile_handle
+	" are written to {2}".format(
+		num_reads, bamfile_handle, outpdf_name
 		)
 	diff_chr, dists, diff_stub, split_reads = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle, 
 		count_diff_refname_stub=count_diff_refname_stub)
@@ -142,9 +148,10 @@ if __name__ == "__main__":
 	print diff_chr, "of total", len(dists), ", fraction ", float(diff_chr) / len(dists)
 	print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
 	print split_reads, "of total", len(dists)*2, ", fraction ", split_reads / float(len(dists)*2)
+	
 	if count_diff_refname_stub:
 		print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad prep potentially):"
 		print diff_stub, "of total", len(dists), ", fraction", float(diff_stub) / len(dists)
 		
-	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads)
+	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads, outpdf_name=outpdf_name)
 	
