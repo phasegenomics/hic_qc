@@ -11,10 +11,13 @@ import sys
 import pysam
 import numpy as np
 import argparse
+import os
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+#from matplotlib.backends.backend_pdf import PdfPages
+import pdfkit
+import markdown as md
 
 def parse_args(desc):
 	'''parse command-line args
@@ -32,8 +35,11 @@ def parse_args(desc):
 	help = "BAM file to evaluate for QC")
 	parser.add_argument("--count_diff_refname_stub", default=False, action="store_true",
 		help="Can be used to QC differently given reference name formatting. For internal use.")
-	parser.add_argument("--outpdf_name", "-o", default="Read_mate_dist.pdf", type=str,
-		help="Path to which to write PDF file.")
+	parser.add_argument("--outfile_name", "-o", default="Read_mate_dist", type=str,
+		help="Path to which to write plots to (PNG suffix will be attached).")
+	parser.add_argument("--make_report", "-r", default=True, type=bool,
+		help="Whether to export results in a PDF report. Requires that the QC script be" \
+		"in the same directory as the QC repo's collateral directory")
 
 	args = parser.parse_args()
 	
@@ -93,65 +99,97 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub = False):
 	dists = dists[0:num+1]
 	return diff_chr, dists, diff_stub, split_reads
 
-def make_histograms(dists, bamfile_handle, num_reads, outpdf_name):
+def make_histograms(dists, bamfile_handle, num_reads, outfile_name):
 	'''make the read distance histograms
 	Args:
 		dists (numpy array of ints): Distances to plot in histogram.
 		bamfile_handle (str): path to bamfile of dists
 		'''
 	num_reads = len(dists)
-	with PdfPages(outpdf_name) as pdf:
-		fig1 = plt.figure()
-		plt.hist(dists, bins=40)
-		ax = fig1.add_subplot(111)
-		ax.set_ylim(0.5, num_reads * 2)
-		plt.yscale("log", nonposy="clip")
-		plt.title("Mate distance distribution for sample\n" + bamfile_handle+"\nfor first " + str(num_reads)+ " reads")
-		plt.xlabel("Distance between read pair mates in Hi-C mapping")
-		plt.ylabel("Number of reads")
-		pdf.savefig(fig1)
-		plt.close()
+	#with PdfPages(outfile_name) as pdf:
+	fig1 = plt.figure()
+	plt.hist(dists, bins=40)
+	ax = fig1.add_subplot(111)
+	ax.set_ylim(0.5, num_reads * 2)
+	plt.yscale("log", nonposy="clip")
+	plt.title("\nMate distance distribution for first " + str(num_reads)+ " reads for sample\n" + bamfile_handle)
+	plt.xlabel("Distance between read pair mates in Hi-C mapping")
+	plt.ylabel("Number of reads")
+	fig1.savefig(outfile_name + "_long.png")
+	plt.close(fig1)
 
-		fig2 = plt.figure()
-		plt.hist(dists, bins=xrange(0,20000, 500))
-		ax = fig2.add_subplot(111)
-		ax.set_xlim(0, 20000)
-		ax.set_ylim(0.5, num_reads * 2)
-		plt.yscale("log", nonposy="clip")
-		plt.title("Mate distance distribution for sample\n" + bamfile_handle+"\nfor first " + str(num_reads)+ " reads")
-		plt.xlabel("Distance between read pair mates in Hi-C mapping")
-		plt.ylabel("Number of reads")
-		pdf.savefig(fig2)
-		plt.close()
+	fig2 = plt.figure()
+	plt.hist(dists, bins=xrange(0,20000, 500))
+	ax = fig2.add_subplot(111)
+	ax.set_xlim(0, 20000)
+	ax.set_ylim(0.5, num_reads * 2)
+	plt.yscale("log", nonposy="clip")
+	plt.title("Mate distance distribution for first " + str(num_reads)+ " reads for sample\n" + bamfile_handle)
+	plt.xlabel("Distance between read pair mates in Hi-C mapping")
+	plt.ylabel("Number of reads")
+	fig2.savefig(outfile_name + "_short.png")
+	plt.close(fig2)
+
+def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
+	template_path = os.path.join(script_path, "collateral", "HiC_QC_report_template.md")
+	if not os.path.exists(template_path):
+		UserWarning("can't find markdown template at {0}! skipping making template.".format(
+		script_path)
+		)
+		sys.exit()
+		
+	with open(template_path) as file:
+		str = file.read()
+		html = md.markdown(str.format(**stat_dict))  # splat the statistics and path into the markdown, render as html
+		pdfkit.from_string(html, outfile_name+"_qc_report.pdf")
+		
 
 if __name__ == "__main__":
 	c_args = parse_args(__file__)
 	num_reads = int(c_args["num_reads"])
 	bamfile_handle = c_args["bam_file"]
-	outpdf_name = c_args["outpdf_name"]
+	outfile_name = c_args["outfile_name"]
+	make_report = c_args["make_report"]
+		
 	count_diff_refname_stub = c_args["count_diff_refname_stub"]
 	print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots"\
-	" are written to {2}".format(
-		num_reads, bamfile_handle, outpdf_name
+	" are written to {2}*".format(
+		num_reads, bamfile_handle, outfile_name
 		)
 	diff_chr, dists, diff_stub, split_reads = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle, 
 		count_diff_refname_stub=count_diff_refname_stub)
+		
+	stat_dict = {}
+	stat_dict["NUM_PAIRS"] = len(dists)
+	stat_dict["PATH_TO_LONG_HIST"] = outfile_name + "_long.png"
+	stat_dict["PATH_TO_SHORT_HIST"] = outfile_name + "_short.png"
+		
 	print "Counts of zero distances (many is a sign of bad prep):"
 	unique, counts = np.unique(dists, return_counts=True)
 	#print unique[-100:-1]
 	zero_dist = dict(zip(unique, counts))[0]
-	print zero_dist, "of total", len(dists), "fraction ", float(zero_dist) / len(dists)
+	stat_dict["ZERO_DIST_PAIRS"] = "{0:.3f}".format(float(zero_dist) / len(dists))
+	print zero_dist, "of total", len(dists), "fraction ", stat_dict["ZERO_DIST_PAIRS"]
+	
 	above_10k = len([dist for dist in dists if dist > 10000])
+	stat_dict["NUM_10KB_PAIRS"] = "{0:.3f}".format(float(above_10k) / len(dists))
 	print "Count of read pairs with distance > 10KB (many is a sign of good prep):"
-	print above_10k, "of total", len(dists), ", fraction ", float(above_10k) / len(dists)
+	print above_10k, "of total", len(dists), ", fraction ", stat_dict["NUM_10KB_PAIRS"] 
+	
+	stat_dict["NUM_DIFF_CONTIG_PAIRS"] = "{0:.3f}".format(float(diff_chr) / len(dists))
 	print "Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):"
-	print diff_chr, "of total", len(dists), ", fraction ", float(diff_chr) / len(dists)
+	print diff_chr, "of total", len(dists), ", fraction ", stat_dict["NUM_DIFF_CONTIG_PAIRS"]
+	
+	stat_dict["NUM_SPLIT_READS"] = "{0:.3f}".format(split_reads / float(len(dists)*2))
 	print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
-	print split_reads, "of total", len(dists)*2, ", fraction ", split_reads / float(len(dists)*2)
+	print split_reads, "of total", len(dists)*2, ", fraction ", stat_dict["NUM_SPLIT_READS"]
 	
 	if count_diff_refname_stub:
 		print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad prep potentially):"
 		print diff_stub, "of total", len(dists), ", fraction", float(diff_stub) / len(dists)
 		
-	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads, outpdf_name=outpdf_name)
+	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads, outfile_name=outfile_name)
 	
+	if make_report:
+		script_path = os.path.split(__file__)[0]
+		make_pdf_report(qc_repo_path=script_path, stat_dict=stat_dict, outfile_name=outfile_name)
