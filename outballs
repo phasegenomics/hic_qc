@@ -1,0 +1,15 @@
+parsing the first 1000000 reads in bam file /Users/maximilianpress/Downloads/abc_qc_control1.bam to QC Hi-C library quality, plots are written to Read_mate_dist*
+Counts of zero distances (many is a sign of bad prep):
+106304 of total 414177 fraction  0.257
+Count of read pairs with distance > 10KB (many is a sign of good prep):
+3658 of total 414177 , fraction  0.009
+Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):
+97949 of total 414177 , fraction  0.236
+Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):
+221581 of total 828354 , fraction  0.267
+Loading pages (1/6)
+[>                                                           ] 0%[======>                                                     ] 10%[=======>                                                    ] 13%[===================>                                        ] 32%[==========================>                                 ] 44%[============================================================] 100%Counting pages (2/6)                                               
+[============================================================] Object 1 of 1Resolving links (4/6)                                                       
+[============================================================] Object 1 of 1Loading headers and footers (5/6)                                           
+Printing pages (6/6)
+[>                                                           ] Preparing[==============================>                             ] Page 1 of 2[============================================================] Page 2 of 2Done                                                                      

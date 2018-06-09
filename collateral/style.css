@@ -1,0 +1,41 @@
+html {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10px;
+  -webkit-text-size-adjust:100%;
+  -ms-text-size-adjust:100%
+}
+ 
+body {
+  margin:0;
+}
+ 
+h1,
+.h1 {
+  font-size: 24px;
+}
+ 
+h2,
+.h2 {
+  font-size: 18px;
+}
+ 
+h3,
+.h3 {
+  font-size: 14px;
+}
+ 
+h4,
+.h4 {
+  font-size: 12px;
+}
+ 
+h5,
+.h5 {
+  font-size: 11px;
+}
+ 
+h6,
+.h6 {
+  font-size: 9px;
+}
+
