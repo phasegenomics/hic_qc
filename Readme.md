@@ -9,6 +9,9 @@ Hi-C connectivity drops off in approximately a power-law with increasing linear 
 * numpy
 * pysam
 * matplotlib
+* pdfkit
+* markdown
+* wkhtmltopdf (needs to be installed manually)
 
 These are installed with pip, e.g.:
 

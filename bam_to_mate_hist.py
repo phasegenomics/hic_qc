@@ -131,7 +131,22 @@ def make_histograms(dists, bamfile_handle, num_reads, outfile_name):
 	plt.close(fig2)
 
 def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
+	options = {
+    'page-size': 'A4',
+    'dpi':	350,
+    'margin-top': '0.75in',
+    'margin-right': '0.75in',
+    'margin-bottom': '0.75in',
+    'margin-left': '0.75in',
+    'encoding': "UTF-8",
+    'custom-header' : [
+        ('Accept-Encoding', 'gzip')
+    ],
+    'no-outline': None
+	}
+	
 	template_path = os.path.join(script_path, "collateral", "HiC_QC_report_template.md")
+	style_path = os.path.join(script_path, "collateral", "style.css")
 	if not os.path.exists(template_path):
 		UserWarning("can't find markdown template at {0}! skipping making template.".format(
 		script_path)
@@ -140,8 +155,17 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
 		
 	with open(template_path) as file:
 		str = file.read()
-		html = md.markdown(str.format(**stat_dict))  # splat the statistics and path into the markdown, render as html
-		pdfkit.from_string(html, outfile_name+"_qc_report.pdf")
+		sub_str = str.format(**stat_dict) # splat the statistics and path into the markdown, render as html
+		#print sub_str
+		html = md.markdown(sub_str, extensions=['tables', 'nl2br'])  
+		
+		# write out just html
+		html_out = open(outfile_name+"_qc_report.html", 'w')
+		html_out.write(html)
+		html_out.close()
+		
+		#print html
+		pdfkit.from_string(html, outfile_name+"_qc_report.pdf", options=options, css= style_path)
 		
 
 if __name__ == "__main__":
@@ -160,9 +184,11 @@ if __name__ == "__main__":
 		count_diff_refname_stub=count_diff_refname_stub)
 		
 	stat_dict = {}
+	stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile_handle)[-1]
 	stat_dict["NUM_PAIRS"] = len(dists)
-	stat_dict["PATH_TO_LONG_HIST"] = outfile_name + "_long.png"
-	stat_dict["PATH_TO_SHORT_HIST"] = outfile_name + "_short.png"
+	script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
+	stat_dict["PATH_TO_LONG_HIST"] = os.path.join(script_path, outfile_name + "_long.png")
+	stat_dict["PATH_TO_SHORT_HIST"] = os.path.join(script_path, outfile_name + "_short.png")
 		
 	print "Counts of zero distances (many is a sign of bad prep):"
 	unique, counts = np.unique(dists, return_counts=True)
@@ -191,5 +217,4 @@ if __name__ == "__main__":
 	make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads, outfile_name=outfile_name)
 	
 	if make_report:
-		script_path = os.path.split(__file__)[0]
 		make_pdf_report(qc_repo_path=script_path, stat_dict=stat_dict, outfile_name=outfile_name)
