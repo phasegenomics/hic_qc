@@ -37,7 +37,7 @@ def parse_args(desc):
 		help="Can be used to QC differently given reference name formatting. For internal use.")
 	parser.add_argument("--outfile_name", "-o", default="Read_mate_dist", type=str,
 		help="Path to which to write plots to (PNG suffix will be attached).")
-	parser.add_argument("--make_report", "-r", default=True, type=bool,
+	parser.add_argument("--make_report", "-r", default=False, action="store_true",
 		help="Whether to export results in a PDF report. Requires that the QC script be" \
 		"in the same directory as the QC repo's collateral directory")
 
@@ -68,6 +68,8 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub = False):
 	for read in bamfile:
 		if num >= num_reads:
 			break
+		#if (num % 10000) == 0:
+		#	print num
 		# read 2 gives info only for split reads
 		if read.qname == last_read:
 			if "S" in read.cigarstring:
