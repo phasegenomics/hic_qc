@@ -39,7 +39,7 @@ def parse_args(desc):
 		help="Path to which to write plots to (PNG suffix will be attached).")
 	parser.add_argument("--make_report", "-r", default=False, action="store_true",
 		help="Whether to export results in a PDF report. Requires that the QC script be" \
-		"in the same directory as the QC repo's collateral directory")
+		"in the same directory as the QC repo's collateral directory. Default: False.")
 
 	args = parser.parse_args()
 	
@@ -189,8 +189,9 @@ if __name__ == "__main__":
 	stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile_handle)[-1]
 	stat_dict["NUM_PAIRS"] = len(dists)
 	script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
-	stat_dict["PATH_TO_LONG_HIST"] = os.path.join(script_path, outfile_name + "_long.png")
-	stat_dict["PATH_TO_SHORT_HIST"] = os.path.join(script_path, outfile_name + "_short.png")
+	print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
+	stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
+	stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
 		
 	print "Counts of zero distances (many is a sign of bad prep):"
 	unique, counts = np.unique(dists, return_counts=True)
