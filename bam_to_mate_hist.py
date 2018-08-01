@@ -98,7 +98,7 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
                 if ref1_stub != ref2_stub:
                     diff_stub += 1
 
-        if read.flag == "1024":
+        if hex(int(read.flag)) == hex(1024):
             dupe_reads += 1
 
         else:
