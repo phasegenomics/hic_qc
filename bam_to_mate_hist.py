@@ -64,9 +64,12 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
     last_read = ""
     bamfile = pysam.AlignmentFile(bamfile_handle, 'rb')
     refs = bamfile.references
+    #n50, total_len = calc_n50_from_header(bamfile.header)
+    #print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
     diff_chr = 0
     diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
     split_reads = 0
+    dupe_reads = 0
     for read in bamfile:
         if num >= num_reads:
             break
@@ -76,6 +79,8 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
         if read.qname == last_read:
             if "S" in read.cigarstring:
                 split_reads += 1
+            if read.flag == "1024":
+                dupe_reads += 1
             continue
         last_read = read.qname
         ref1 = read.reference_id
@@ -92,6 +97,10 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
                 # print ref1_stub, ref2_stub
                 if ref1_stub != ref2_stub:
                     diff_stub += 1
+
+        if read.flag == "1024":
+            dupe_reads += 1
+
         else:
             read1_pos = read.reference_start
             read2_pos = read.next_reference_start
@@ -100,7 +109,35 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
         num += 1
 
     dists = dists[0:num + 1]
-    return diff_chr, dists, diff_stub, split_reads
+    return diff_chr, dists, diff_stub, split_reads, dupe_reads
+
+
+def calc_n50_from_header(header, xx=50.0):
+    '''calculate the N50 of the starting assembly from the information in a pysam header object.
+
+        Args:
+            header (pysam.AlignmentFile.header): the header from which to extract reference sequence lengths
+            xx (float): the XX of NXX. we assume it is N50 so the default is 50.0
+
+        Returns:
+            contig_len (int): the NXX (probably N50) of the assembly based on the header
+            total (int): the total length of the assembly
+
+    '''
+    frac = xx / 100.0
+    lens = [contig["LN"] for contig in header["SQ"]]
+    lens.sort()
+    total = sum(lens)
+    nxx_len = total * frac
+
+    cumsum = 0
+    contig_len = 0
+    for length in reversed(lens):
+        contig_len = length
+        cumsum += length
+        if cumsum >= nxx_len:
+            break
+    return contig_len, total
 
 
 def make_histograms(dists, bamfile_handle, num_reads, outfile_name):
@@ -223,6 +260,10 @@ def extract_stats(stat_list, bamfile_handle, outfile_name, count_diff_refname_st
     print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
     print stat_list[3], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_SPLIT_READS"]
 
+    stat_dict["NUM_DUPE_READS"] = "{0:.3f}".format(stat_list[4] / float(num_pairs * 2))
+    print "Count of duplicate reads (bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
+    print stat_list[4], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_DUPE_READS"]
+
     if count_diff_refname_stub:
         print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad " \
               "prep potentially):"
@@ -243,10 +284,10 @@ if __name__ == "__main__":
           " are written to {2}*".format(
         num_reads, bamfile_handle, outfile_name
     )
-    diff_chr, dists, diff_stub, split_reads = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle,
+    diff_chr, dists, diff_stub, split_reads, dupe_reads = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle,
                                                              count_diff_refname_stub=count_diff_refname_stub)
 
-    stat_list = [diff_chr, dists, diff_stub, split_reads]
+    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads]
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     stat_dict = extract_stats(stat_list=stat_list, bamfile_handle=bamfile_handle, outfile_name=outfile_name,
