@@ -7,12 +7,13 @@
 
 | Label                                                           | Your library          | Expected values                               |
 |-----------------------------------------------------------------|:---------------------:|----------------------------------------------:|
-| BAM file                                                        | {BAM_FILE_PATH}                      | N/A                                           |
-| Number of read pairs                                            | {NUM_PAIRS}             | N/A                                           |
+| BAM file                                                        | {BAM_FILE_PATH}         | N/A                                           |
+| Number of read pairs analyzed                                   | {NUM_PAIRS}             | N/A                                           |
 | Fraction of read pairs >10KB apart                              | {NUM_10KB_PAIRS}        | 0.01-0.10                                    |
 | Fraction of read pairs mapping to different contigs/chromosomes | {NUM_DIFF_CONTIG_PAIRS} | 0.1-0.5 (contigs)<br>0.01-0.1 (chromosomes)      |
 | Fraction of split reads                                         | {NUM_SPLIT_READS}       | 0.1-0.4 (PG libraries) 0.3+ (other libraries) |
 | Fraction of zero-distance pairs                                 | {ZERO_DIST_PAIRS}       | 0-0.15                                        |
+| Fraction of duplicate reads                                 | {NUM_DUPE_READS}       | 0-0.5                                        |
 
 
 </center>
@@ -32,4 +33,5 @@ We briefly describe some of the statistics we compute below to aid interpretatio
 ### Split reads
 Traditionally, split reads have been a favored measure of Hi-C library quality. This is because traditional Hi-C library preparations are expected to produce many reads reading through junctions. 
 
-Phase Genomics libraries, whether produced in our laboratory or by means of ProxiMeta &copy;, Animal, Plant, or Human kits, will have a generally lower fraction of split reads. This is because we have optimized our Hi-C protocol to 
+Phase Genomics libraries, whether produced in our laboratory or by means of ProxiMeta &copy;, Animal, Plant, or Human kits, will have a generally lower fraction of split reads. This is because we have optimized our Hi-C protocol to ...
+We therefore rely more heavily on metrics that directly relate to the usefulness of Hi-C reads for proximity analysis, such as the percentage of read pairs with mates mapping far away, or mapping to different contigs.
