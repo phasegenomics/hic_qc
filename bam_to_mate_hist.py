@@ -263,7 +263,7 @@ def extract_stats(stat_list, bamfile_handle, outfile_name, count_diff_refname_st
     print stat_list[3], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_SPLIT_READS"]
 
     stat_dict["NUM_DUPE_READS"] = "{0:.3f}".format(stat_list[4] / float(num_pairs * 2))
-    print "Count of duplicate reads (bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
+    print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_list[4], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_DUPE_READS"]
 
     if count_diff_refname_stub:
