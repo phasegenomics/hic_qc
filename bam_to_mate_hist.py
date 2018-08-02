@@ -75,19 +75,24 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
             break
         # if (num % 10000) == 0:
         #	print num
-        # read 2 gives info only for split reads
+
+        # count dupes and split reads for both F+R
+        if "S" in read.cigarstring:
+            split_reads += 1
+        if read.is_duplicate:
+        # fun alternatives for the internal is_duplicate attribute flag
+        #if bool((int(read.flag) >> 10) & (1024 >> 10)):
+        #if bool(int(read.flag) & 1024):
+        #if 1024 <= int(read.flag) < 2048:
+            dupe_reads += 1
+
+        # only count per pair for other stats
         if read.qname == last_read:
-            if "S" in read.cigarstring:
-                split_reads += 1
-            if read.flag == "1024":
-                dupe_reads += 1
             continue
+
         last_read = read.qname
         ref1 = read.reference_id
         ref2 = read.next_reference_id
-        # count split reads
-        if "S" in read.cigarstring:
-            split_reads += 1
 
         if ref1 != ref2:
             diff_chr += 1
@@ -98,9 +103,6 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
                 if ref1_stub != ref2_stub:
                     diff_stub += 1
 
-        if hex(int(read.flag)) == hex(1024):
-            dupe_reads += 1
-
         else:
             read1_pos = read.reference_start
             read2_pos = read.next_reference_start
@@ -108,7 +110,7 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
             dists[num] = dist
         num += 1
 
-    dists = dists[0:num + 1]
+    dists = dists[0:num + 1]  # why am i doing this?
     return diff_chr, dists, diff_stub, split_reads, dupe_reads
 
 
