@@ -13,10 +13,12 @@
 | Fraction of read pairs mapping to different contigs/chromosomes | {NUM_DIFF_CONTIG_PAIRS} | 0.1-0.5 (contigs)<br>0.01-0.1 (chromosomes)      |
 | Fraction of split reads                                         | {NUM_SPLIT_READS}       | 0.1-0.4 (PG libraries) 0.3+ (other libraries) |
 | Fraction of zero-distance pairs                                 | {ZERO_DIST_PAIRS}       | 0-0.15                                        |
-| Fraction of duplicate reads                                 | {NUM_DUPE_READS}       | 0-0.5                                        |
+| Fraction of duplicate reads*                                 | {NUM_DUPE_READS}       | 0-0.5                                        |
 
 
 </center>
+*If this quantity is zero, see duplicate read section below.
+
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 
 ## Aligned mate distance histograms
@@ -41,4 +43,6 @@ Phase Genomics libraries, whether produced in our laboratory or by means of Prox
 We therefore rely more heavily on metrics that directly relate to the usefulness of Hi-C reads for proximity analysis, such as the percentage of read pairs with mates mapping far away, or mapping to different contigs.
 
 ### Duplicate reads
+**IMPORTANT NOTE: THE DUPLICATE FLAG IS NOT SET BY DEFAULT IN A BAM FILE. YOU NEED TO EXPLICITLY SET IT BY E.G. RUNNING SAMBLASTER ON YOUR BAM FILE. IF THE FRACTION OF DUPLICATES IS EXACTLY ZERO, IT PROBABLY MEANS THAT THE FLAG HAS NOT BEEN SET.**
+
 Sequencing libraries frequently contain duplicate reads, due to PCR or optical issues. These are generally considered to be non-informative, and are thus bad. Higher proportions of duplicate reads are also correlated with low library complexity and poor library performance generally.
