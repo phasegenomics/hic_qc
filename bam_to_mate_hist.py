@@ -48,10 +48,10 @@ def parse_args(desc):
     return vars(args)
 
 
-def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
+def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     '''Parse a bam file, collect distances between mates in each read pair
     Args:
-        bamfile_handle (str): path to bamfile to read
+        bamfile (str): path to bamfile to read
         num_reads (int): maximum number of reads to use from file (if there are so many
         reads in the file).
         count_from_stub (bool): whether to
@@ -62,53 +62,53 @@ def parse_bam_file(bamfile_handle, num_reads, count_diff_refname_stub=False):
     num = 0
     dists = np.empty([num_reads, 1], dtype=int)
     last_read = ""
-    bamfile = pysam.AlignmentFile(bamfile_handle, 'rb')
-    refs = bamfile.references
-    #n50, total_len = calc_n50_from_header(bamfile.header)
-    #print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
-    diff_chr = 0
-    diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
-    split_reads = 0
-    dupe_reads = 0
-    for read in bamfile:
-        if num >= num_reads:
-            break
-        # if (num % 10000) == 0:
-        #	print num
+    with pysam.AlignmentFile(bamfile, 'rb') as bamfile_open:
+        refs = bamfile_open.references
+        #n50, total_len = calc_n50_from_header(bamfile_open.header)
+        #print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
+        diff_chr = 0
+        diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
+        split_reads = 0
+        dupe_reads = 0
+        for read in bamfile_open:
+            if num >= num_reads:
+                break
+            # if (num % 10000) == 0:
+            #	print num
 
-        # count dupes and split reads for both F+R
-        if "S" in read.cigarstring:
-            split_reads += 1
-        if read.is_duplicate:
-        # fun alternatives for the internal is_duplicate attribute flag
-        #if bool((int(read.flag) >> 10) & (1024 >> 10)):
-        #if bool(int(read.flag) & 1024):
-        #if 1024 <= int(read.flag) < 2048:
-            dupe_reads += 1
+            # count dupes and split reads for both F+R
+            if "S" in read.cigarstring:
+                split_reads += 1
+            if read.is_duplicate:
+            # fun alternatives for the internal is_duplicate attribute flag
+            #if bool((int(read.flag) >> 10) & (1024 >> 10)):
+            #if bool(int(read.flag) & 1024):
+            #if 1024 <= int(read.flag) < 2048:
+                dupe_reads += 1
 
-        # only count per pair for other stats
-        if read.qname == last_read:
-            continue
+            # only count per pair for other stats
+            if read.qname == last_read:
+                continue
 
-        last_read = read.qname
-        ref1 = read.reference_id
-        ref2 = read.next_reference_id
+            last_read = read.qname
+            ref1 = read.reference_id
+            ref2 = read.next_reference_id
 
-        if ref1 != ref2:
-            diff_chr += 1
-            if count_diff_refname_stub:
-                ref1_stub = refs[ref1].split(".")[0]
-                ref2_stub = refs[ref2].split(".")[0]
-                # print ref1_stub, ref2_stub
-                if ref1_stub != ref2_stub:
-                    diff_stub += 1
+            if ref1 != ref2:
+                diff_chr += 1
+                if count_diff_refname_stub:
+                    ref1_stub = refs[ref1].split(".")[0]
+                    ref2_stub = refs[ref2].split(".")[0]
+                    # print ref1_stub, ref2_stub
+                    if ref1_stub != ref2_stub:
+                        diff_stub += 1
 
-        else:
-            read1_pos = read.reference_start
-            read2_pos = read.next_reference_start
-            dist = str(abs(read1_pos - read2_pos))
-            dists[num] = dist
-        num += 1
+            else:
+                read1_pos = read.reference_start
+                read2_pos = read.next_reference_start
+                dist = str(abs(read1_pos - read2_pos))
+                dists[num] = dist
+            num += 1
 
     dists = dists[0:num + 1]  # why am i doing this?
     return diff_chr, dists, diff_stub, split_reads, dupe_reads
@@ -142,11 +142,11 @@ def calc_n50_from_header(header, xx=50.0):
     return contig_len, total
 
 
-def make_histograms(dists, bamfile_handle, num_reads, outfile_name):
+def make_histograms(dists, bamfile, num_reads, outfile_name):
     '''make the read distance histograms using matplotlib and write them to disk.
 	Args:
 		dists (numpy array of ints): Distances to plot in histogram.
-		bamfile_handle (str): path to bamfile of dists
+		bamfile (str): path to bamfile of dists
 	'''
     num_reads = len(dists)
     # with PdfPages(outfile_name) as pdf:
@@ -155,7 +155,7 @@ def make_histograms(dists, bamfile_handle, num_reads, outfile_name):
     ax = fig1.add_subplot(111)
     ax.set_ylim(0.5, num_reads * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("\nMate distance distribution for first " + str(num_reads) + " reads for sample\n" + bamfile_handle)
+    plt.title("\nMate distance distribution for first " + str(num_reads) + " reads for sample\n" + bamfile)
     plt.xlabel("Distance between read pair mates in Hi-C mapping")
     plt.ylabel("Number of reads")
     fig1.savefig(outfile_name + "_long.png")
@@ -167,7 +167,7 @@ def make_histograms(dists, bamfile_handle, num_reads, outfile_name):
     ax.set_xlim(0, 20000)
     ax.set_ylim(0.5, num_reads * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("Mate distance distribution for first " + str(num_reads) + " reads for sample\n" + bamfile_handle)
+    plt.title("Mate distance distribution for first " + str(num_reads) + " reads for sample\n" + bamfile)
     plt.xlabel("Distance between read pair mates in Hi-C mapping")
     plt.ylabel("Number of reads")
     fig2.savefig(outfile_name + "_short.png")
@@ -220,21 +220,21 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         pdfkit.from_string(html, outfile_name + "_qc_report.pdf", options=options, css=style_path)
 
 
-def extract_stats(stat_list, bamfile_handle, outfile_name, count_diff_refname_stub=False):
+def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=False):
     '''Make a dict of results and data suitable to be passed to the report template for splatting.
 
     Args:
         stat_list ([str]): the four statistics estimated from the bam file
                            (stat_list = [diff_chr, dists, diff_stub, split_reads])
-        bamfile_handle (str): path to bam file
-        outfile_handle (str): path to where output files will be written
+        bamfile (str): path to bam file
+        outfile_name (str): path to where output files will be written
         count_diff_refname_stub (bool): whether we are counting the contig name stub differences.
 
     Returns:
         stat_dict ({str:float/str}: mappings of the stats and data suitable to be consumed by report generator
     '''
     stat_dict = {}
-    stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile_handle)[-1]
+    stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
     num_pairs = len(stat_list[1])
     stat_dict["NUM_PAIRS"] = num_pairs
 
@@ -274,28 +274,55 @@ def extract_stats(stat_list, bamfile_handle, outfile_name, count_diff_refname_st
     return stat_dict
 
 
+def write_stat_table(stat_dict, outfile_name):
+    '''Writes the stats as a plain text file.
+
+    Args:
+        stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
+
+    '''
+    if not outfile_name.endswith(".tsv"):
+        outfile_tsv = outfile_name + ".tsv"
+    else:
+        outfile_tsv = outfile_name
+
+    TABLE_TEMPLATE = "BAM\t{BAM_FILE_PATH}\n" \
+                     "num_reads\t{NUM_PAIRS}\n" \
+                     "zero_dist_pairs\t{ZERO_DIST_PAIRS}\n" \
+                     "10kb_pairs\t{NUM_10KB_PAIRS}\n" \
+                     "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
+                     "split_reads\t{NUM_SPLIT_READS}\n" \
+                     "dupe_reads\t{NUM_DUPE_READS}\n"
+
+    table = TABLE_TEMPLATE.format(**stat_dict)
+    with open(outfile_tsv, "w") as outfile:
+        outfile.write(table)
+
+
 if __name__ == "__main__":
     c_args = parse_args(__file__)
     num_reads = int(c_args["num_reads"])
-    bamfile_handle = c_args["bam_file"]
+    bamfile = c_args["bam_file"]
     outfile_name = c_args["outfile_name"]
     make_report = c_args["make_report"]
 
     count_diff_refname_stub = c_args["count_diff_refname_stub"]
     print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots" \
           " are written to {2}*".format(
-        num_reads, bamfile_handle, outfile_name
+        num_reads, bamfile, outfile_name
     )
-    diff_chr, dists, diff_stub, split_reads, dupe_reads = parse_bam_file(num_reads=num_reads, bamfile_handle=bamfile_handle,
+    diff_chr, dists, diff_stub, split_reads, dupe_reads = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                                              count_diff_refname_stub=count_diff_refname_stub)
 
     stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads]
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
-    stat_dict = extract_stats(stat_list=stat_list, bamfile_handle=bamfile_handle, outfile_name=outfile_name,
+    stat_dict = extract_stats(stat_list=stat_list, bamfile=bamfile, outfile_name=outfile_name,
                               count_diff_refname_stub=count_diff_refname_stub)
 
-    make_histograms(dists=dists, bamfile_handle=bamfile_handle, num_reads=num_reads, outfile_name=outfile_name)
+    make_histograms(dists=dists, bamfile=bamfile, num_reads=num_reads, outfile_name=outfile_name)
+
+    write_stat_table(stat_dict=stat_dict, outfile_name=outfile_name)
 
     if make_report:
         make_pdf_report(qc_repo_path=script_path, stat_dict=stat_dict, outfile_name=outfile_name)
