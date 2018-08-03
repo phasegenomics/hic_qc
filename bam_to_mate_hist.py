@@ -212,10 +212,9 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
 
         # write out just html
-        html_out = open(outfile_name + "_qc_report.html", 'w')
-        html_out.write(html)
-        html_out.close()
-
+        with open(outfile_name + "_qc_report.html", 'w') as html_out:
+            html_out.write(html)
+        
         # print html
         pdfkit.from_string(html, outfile_name + "_qc_report.pdf", options=options, css=style_path)
 
