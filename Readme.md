@@ -17,7 +17,7 @@ Hi-C connectivity drops off in approximately a power-law with increasing linear 
 
 For installation, run this statement in a terminal:
 
-`git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist && sudo pip install -r requirements.txt`
+`git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist && pip install --user -r requirements.txt`
 
 We include a `requirements.txt` file with these dependencies, which should be installed if you use the above command. However, if you want to use the PDF report feature of this tool, you will need to install `wkhtmltopdf` externally, as we cannot install this readily.
 
