@@ -2,30 +2,35 @@
 
 This script is intended as a simple QC method for Hi-C libraries, based on reads in a BAM file aligned to some genome/assembly. 
 
-Hi-C connectivity drops off in approximately a power-law with increasing linear sequence distance. Consequently, one expects Hi-C reads to follow a characteristic distribution, wherein there is a spike of many read pairs at distances close to zero, which drops off smoothly (in log space) with increasing distance. If there are odd spikes or discontinuities, there may be a problem either with the library or the assembly. This script makes plots of the Hi-C distance distribution, and calculates a few helpful statistics regarding the library.
+The most informative Hi-C reads are the ones that are long-distance contacts, or contacts between contigs of an assembly. This tool quantifies such contacts and makes plots of contact distance distributions. The most successful Hi-C libraries have many long-distance and among-contig contacts.
+
+Hi-C connectivity drops off in approximately a power-law with increasing linear sequence distance. Consequently, one expects Hi-C reads to follow a characteristic distribution, wherein there is a spike of many read pairs at distances close to zero, which drops off smoothly (in log space) with increasing distance. If there are odd spikes or discontinuities, or if there are few long-distance contacts, there may be a problem either with the library or the assembly.
 
 ## Dependencies
 * python2.7 (mostly tested using 2.7.10)
 * numpy
 * pysam
 * matplotlib
+* pdfkit
+* markdown
+* wkhtmltopdf (needs to be installed manually)
 
-These are installed with pip, e.g.:
+For installation, run this statement in a terminal:
+
+`git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist && pip install --user -r requirements.txt`
+
+We include a `requirements.txt` file with these dependencies, which should be installed if you use the above command. However, if you want to use the PDF report feature of this tool, you will need to install `wkhtmltopdf` externally, as we cannot install this readily.
+
+The dependencies could also be installed with pip, e.g.:
 
 `pip install pysam`
 
-We include a `requirements.txt` file with these dependencies, which should be installed if you follow the instructions in the Usage section below.
-
-I've tested this script on MacOSX and Ubuntu Linux. 
+I've tested this script on MacOSX, Ubuntu Linux, and Amazon Linux. 
 
 Some dependencies such as matplotlib don't play nicely with all pythons, such that some pythons in e.g. virtualenvs may not work. In that specific case you can just deactivate the virtualenv. 
 
 ## Usage
-For installation, run this statement in a terminal:
-
-`git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist && sudo pip install -r requirements.txt`
-
-You can run the script in a terminal
+In the most basic use-case, you can run the script in a terminal
 
 `python bam_to_mate_hist.py -b input.bam -n num_reads_to_use`
 
@@ -33,7 +38,11 @@ where `input.bam` is your BAM file from aligning Hi-C reads to your reference, a
 
 The script will write plots in PDF format to the file `Read_mate_dist.pdf` in the working directory.
 
-The script will also quantify some basic quantitative QC metrics.
+The script will also quantify some basic QC metrics and print those to the screen.
+
+The script can also make a full-on report of those metrics with the plots embedded if you set the `-r`/`--make_report` flag. 
+
+To set the name of the files written out, such as the PNG figures and the report PDF, set the `-o /path/to/outfile` or `--outfile_name /path/to/outfile` parameters.
 
 ## Interpreting results
 Histogram plots should show some characteristic features:
@@ -45,6 +54,7 @@ Histogram plots should show some characteristic features:
 * Number of read pairs with mates mapping >10KB apart. These are good. We would ideally like to see lots of very long-distance contacts between mates, as that is a sign of strong Hi-C signal. On the order of 0.5-5% is reasonable, though it depends on the assembly.
 * Number of read pairs with mates mapping to different contigs/chromosomes. These are good if they represent contacts within a cell, but bad if they represent noise or contacts between cells (e.g. for metagenomic data). On the order of 5-20% seems standard, again it depends on particulars of the assembly.
 * Number of split reads. These are good, usually, as they hopefully represent Hi-C junctions and thus successful Hi-C. There are of course other reasons why a read might be split.
+
 ### Example histograms
 The collateral folder includes several histograms which serve as examples of what is expected for a good Hi-C library.
 

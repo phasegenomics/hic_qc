@@ -1,3 +1,5 @@
 pysam==0.11.2.2
 matplotlib==2.0.2
 numpy==1.13.3
+pdfkit==0.6.1
+markdown==2.6.11
