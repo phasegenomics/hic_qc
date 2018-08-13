@@ -111,7 +111,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
             num += 1
 
     dists = dists[0:num + 1]  # why am i doing this?
-    return diff_chr, dists, diff_stub, split_reads, dupe_reads
+    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs
 
 
 def calc_n50_from_header(header, xx=50.0):
@@ -219,6 +219,14 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         pdfkit.from_string(html, outfile_name + "_qc_report.pdf", options=options, css=style_path)
 
 
+def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
+    '''estimate the desired number of reads total based on the observed reads'''
+    target_num = len(refs) * target  # desired among-contig
+    diff_rate = float(diff_contig) / float(num_pairs)  # rate of among-contig per read pair
+    total_num = target_num / diff_rate
+    return int(total_num)
+
+
 def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=False):
     '''Make a dict of results and data suitable to be passed to the report template for splatting.
 
@@ -264,6 +272,14 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
     stat_dict["NUM_DUPE_READS"] = "{0:.3f}".format(stat_list[4] / float(num_pairs * 2))
     print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_list[4], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_DUPE_READS"]
+	
+    stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
+    print "Number of reads needed for informative scaffolding, estimated based on sample:"
+    print stat_dict["NUM_READS_NEEDED"], "pairs"
+
+    stat_dict["DECON_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=10)
+    print "Number of reads needed for confident deconvolution, estimated based on sample:"
+    print stat_dict["DECON_READS_NEEDED"], "pairs"
 
     if count_diff_refname_stub:
         print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad " \
@@ -291,7 +307,9 @@ def write_stat_table(stat_dict, outfile_name):
                      "10kb_pairs\t{NUM_10KB_PAIRS}\n" \
                      "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
                      "split_reads\t{NUM_SPLIT_READS}\n" \
-                     "dupe_reads\t{NUM_DUPE_READS}\n"
+                     "dupe_reads\t{NUM_DUPE_READS}\n"  \
+                     "desired_scaffolding_reads\t{NUM_READS_NEEDED}" \
+                     "desired_deconvolution_reads\t{DECON_READS_NEEDED}"
 
     table = TABLE_TEMPLATE.format(**stat_dict)
     with open(outfile_tsv, "w") as outfile:
@@ -307,13 +325,12 @@ if __name__ == "__main__":
 
     count_diff_refname_stub = c_args["count_diff_refname_stub"]
     print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots" \
-          " are written to {2}*".format(
-        num_reads, bamfile, outfile_name
-    )
-    diff_chr, dists, diff_stub, split_reads, dupe_reads = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
-                                                             count_diff_refname_stub=count_diff_refname_stub)
+          " are written to {2}*".format(num_reads, bamfile, outfile_name)
 
-    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads]
+    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
+                                                                count_diff_refname_stub=count_diff_refname_stub)
+
+    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads,refs]
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     stat_dict = extract_stats(stat_list=stat_list, bamfile=bamfile, outfile_name=outfile_name,
