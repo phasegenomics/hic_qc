@@ -70,6 +70,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
         split_reads = 0
         dupe_reads = 0
+        zero_dists = 0
         for read in bamfile_open:
             if num >= num_reads:
                 break
@@ -108,10 +109,13 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                 read2_pos = read.next_reference_start
                 dist = str(abs(read1_pos - read2_pos))
                 dists[num] = dist
+                if int(dist) == 0:
+                    zero_dists += 1
             num += 1
 
-    dists = dists[0:num + 1]  # why am i doing this?
-    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs
+    # think zero-dist bug came from this
+    #dists = dists[0:num + 1]  # why am i doing this?
+    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists
 
 
 def calc_n50_from_header(header, xx=50.0):
@@ -251,8 +255,8 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
 
     print "Counts of zero distances (many is a sign of bad prep):"
     unique, counts = np.unique(stat_list[1], return_counts=True)  # tabulates the distances, with indices as the dists
-    # print unique[-100:-1]
-    zero_dist = dict(zip(unique, counts))[0]  # first element is the zero-distances
+    #zero_dist = dict(zip(unique, counts))[0]  # first element is the zero-distances
+    zero_dist = stat_list[6]
     stat_dict["ZERO_DIST_PAIRS"] = "{0:.3f}".format(float(zero_dist) / num_pairs)
     print zero_dist, "of total", num_pairs, "fraction ", stat_dict["ZERO_DIST_PAIRS"]
 
@@ -308,8 +312,8 @@ def write_stat_table(stat_dict, outfile_name):
                      "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
                      "split_reads\t{NUM_SPLIT_READS}\n" \
                      "dupe_reads\t{NUM_DUPE_READS}\n"  \
-                     "desired_scaffolding_reads\t{NUM_READS_NEEDED}" \
-                     "desired_deconvolution_reads\t{DECON_READS_NEEDED}"
+                     "desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
+                     "desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
 
     table = TABLE_TEMPLATE.format(**stat_dict)
     with open(outfile_tsv, "w") as outfile:
@@ -327,10 +331,10 @@ if __name__ == "__main__":
     print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots" \
           " are written to {2}*".format(num_reads, bamfile, outfile_name)
 
-    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
+    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                                                 count_diff_refname_stub=count_diff_refname_stub)
 
-    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads,refs]
+    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads,refs, zero_dists]
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     stat_dict = extract_stats(stat_list=stat_list, bamfile=bamfile, outfile_name=outfile_name,
