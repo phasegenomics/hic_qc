@@ -59,9 +59,6 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         diff_chr (int): number of reads mapping between contigs/chromosomes
         dists (numpy array of ints): distances between mates.
     '''
-    num = 0
-    dists = np.empty([num_reads, 1], dtype=int)
-    last_read = ""
     with pysam.AlignmentFile(bamfile, 'rb') as bamfile_open:
         refs = bamfile_open.references
         #n50, total_len = calc_n50_from_header(bamfile_open.header)
@@ -71,6 +68,9 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         split_reads = 0
         dupe_reads = 0
         zero_dists = 0
+        num = 0
+        dists = np.empty([num_reads, 1], dtype=int)
+        last_read = ""
         for read in bamfile_open:
             if num >= num_reads:
                 break
@@ -97,6 +97,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
 
             if ref1 != ref2:
                 diff_chr += 1
+                dists[num] = -1  # doesn't support NaNs in int arrays
                 if count_diff_refname_stub:
                     ref1_stub = refs[ref1].split(".")[0]
                     ref2_stub = refs[ref2].split(".")[0]
@@ -111,11 +112,10 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                 dists[num] = dist
                 if int(dist) == 0:
                     zero_dists += 1
+
             num += 1
 
-    # think zero-dist bug came from this
-    #dists = dists[0:num + 1]  # why am i doing this?
-    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists
+    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num
 
 
 def calc_n50_from_header(header, xx=50.0):
@@ -146,21 +146,22 @@ def calc_n50_from_header(header, xx=50.0):
     return contig_len, total
 
 
-def make_histograms(dists, bamfile, num_reads, outfile_name):
+def make_histograms(dists, bamfile, outfile_name):
     '''make the read distance histograms using matplotlib and write them to disk.
 	Args:
 		dists (numpy array of ints): Distances to plot in histogram.
 		bamfile (str): path to bamfile of dists
 	'''
-    num_reads = len(dists)
+    dists = dists[[dist > 0 for dist in dists]]
+    num_dists = len(dists)
     # with PdfPages(outfile_name) as pdf:
     fig1 = plt.figure()
     plt.hist(dists, bins=40)
     ax = fig1.add_subplot(111)
     ax.set_ylim(0.5, num_reads * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("\nMate distance distribution for first " + str(num_reads) + " reads for sample\n" + bamfile)
-    plt.xlabel("Distance between read pair mates in Hi-C mapping")
+    plt.title("\nMate distance distribution for first " + str(num_dists) + " reads for sample\n" + bamfile)
+    plt.xlabel("Distance between read pair mates in Hi-C mapping (same contig)")
     plt.ylabel("Number of reads")
     fig1.savefig(outfile_name + "_long.png")
     plt.close(fig1)
@@ -171,8 +172,8 @@ def make_histograms(dists, bamfile, num_reads, outfile_name):
     ax.set_xlim(0, 20000)
     ax.set_ylim(0.5, num_reads * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("Mate distance distribution for first " + str(num_reads) + " reads for sample\n" + bamfile)
-    plt.xlabel("Distance between read pair mates in Hi-C mapping")
+    plt.title("Mate distance distribution for first " + str(num_dists) + " reads for sample\n" + bamfile)
+    plt.xlabel("Distance between read pair mates in Hi-C mapping (same contig)")
     plt.ylabel("Number of reads")
     fig2.savefig(outfile_name + "_short.png")
     plt.close(fig2)
@@ -212,7 +213,6 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
     with open(template_path) as file:
         str = file.read()
         sub_str = str.format(**stat_dict)  # splat the statistics and path into the markdown, render as html
-        # print sub_str
         html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
 
         # write out just html
@@ -246,7 +246,7 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
     '''
     stat_dict = {}
     stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
-    num_pairs = len(stat_list[1])
+    num_pairs = stat_list[7]
     stat_dict["NUM_PAIRS"] = num_pairs
 
     print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
@@ -254,7 +254,7 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
     stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
 
     print "Counts of zero distances (many is a sign of bad prep):"
-    unique, counts = np.unique(stat_list[1], return_counts=True)  # tabulates the distances, with indices as the dists
+    #unique, counts = np.unique(stat_list[1], return_counts=True)  # tabulates the distances, with indices as the dists
     #zero_dist = dict(zip(unique, counts))[0]  # first element is the zero-distances
     zero_dist = stat_list[6]
     stat_dict["ZERO_DIST_PAIRS"] = "{0:.3f}".format(float(zero_dist) / num_pairs)
@@ -276,7 +276,7 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
     stat_dict["NUM_DUPE_READS"] = "{0:.3f}".format(stat_list[4] / float(num_pairs * 2))
     print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_list[4], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_DUPE_READS"]
-	
+
     stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
     print "Number of reads needed for informative scaffolding, estimated based on sample:"
     print stat_dict["NUM_READS_NEEDED"], "pairs"
@@ -331,16 +331,16 @@ if __name__ == "__main__":
     print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots" \
           " are written to {2}*".format(num_reads, bamfile, outfile_name)
 
-    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
+    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                                                 count_diff_refname_stub=count_diff_refname_stub)
 
-    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads,refs, zero_dists]
+    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads]
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     stat_dict = extract_stats(stat_list=stat_list, bamfile=bamfile, outfile_name=outfile_name,
                               count_diff_refname_stub=count_diff_refname_stub)
 
-    make_histograms(dists=dists, bamfile=bamfile, num_reads=num_reads, outfile_name=outfile_name)
+    make_histograms(dists=dists, bamfile=bamfile, outfile_name=outfile_name)
 
     write_stat_table(stat_dict=stat_dict, outfile_name=outfile_name)
 
