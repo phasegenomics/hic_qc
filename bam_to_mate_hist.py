@@ -48,6 +48,13 @@ def parse_args(desc):
     return vars(args)
 
 
+def is_split_read(read):
+    tags = read.get_tags()
+    is_split = any([tag[0] == "SA" for tag in tags])
+    #print [tag[0] for tag in tags], is_split
+    return is_split
+
+
 def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     '''Parse a bam file, collect distances between mates in each read pair
     Args:
@@ -61,8 +68,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     '''
     with pysam.AlignmentFile(bamfile, 'rb') as bamfile_open:
         refs = bamfile_open.references
-        #n50, total_len = calc_n50_from_header(bamfile_open.header)
-        #print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
+        n50, total_len = calc_n50_from_header(bamfile_open.header)
+        print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
         diff_chr = 0
         diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
         split_reads = 0
@@ -78,8 +85,10 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
             #	print num
 
             # count dupes and split reads for both F+R
-            if "S" in read.cigarstring:
+
+            if is_split_read(read):
                 split_reads += 1
+
             if read.is_duplicate:
             # fun alternatives for the internal is_duplicate attribute flag
             #if bool((int(read.flag) >> 10) & (1024 >> 10)):
@@ -277,13 +286,13 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
     print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_list[4], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_DUPE_READS"]
 
-    stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
-    print "Number of reads needed for informative scaffolding, estimated based on sample:"
-    print stat_dict["NUM_READS_NEEDED"], "pairs"
+    #stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
+    #print "Number of reads needed for informative scaffolding, estimated based on sample:"
+    #print stat_dict["NUM_READS_NEEDED"], "pairs"
 
-    stat_dict["DECON_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=10)
-    print "Number of reads needed for confident deconvolution, estimated based on sample:"
-    print stat_dict["DECON_READS_NEEDED"], "pairs"
+    #stat_dict["DECON_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=10)
+    #print "Number of reads needed for confident deconvolution, estimated based on sample:"
+    #print stat_dict["DECON_READS_NEEDED"], "pairs"
 
     if count_diff_refname_stub:
         print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad " \
@@ -312,8 +321,8 @@ def write_stat_table(stat_dict, outfile_name):
                      "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
                      "split_reads\t{NUM_SPLIT_READS}\n" \
                      "dupe_reads\t{NUM_DUPE_READS}\n"  \
-                     "desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
-                     "desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
+                     #"desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
+                     #"desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
 
     table = TABLE_TEMPLATE.format(**stat_dict)
     with open(outfile_tsv, "w") as outfile:
