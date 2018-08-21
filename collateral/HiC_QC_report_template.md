@@ -9,13 +9,11 @@
 |-----------------------------------------------------------------|:---------------------:|----------------------------------------------:|
 | BAM file                                                        | {BAM_FILE_PATH}         | N/A                                           |
 | Number of read pairs analyzed                                   | {NUM_PAIRS}             | N/A                                           |
-| Fraction of read pairs >10KB apart                              | {NUM_10KB_PAIRS}        | 0.01-0.10                                    |
-| Fraction of read pairs mapping to different contigs/chromosomes | {NUM_DIFF_CONTIG_PAIRS} | 0.1-0.5 (contigs)<br>0.01-0.1 (chromosomes)      |
-| Fraction of split reads                                         | {NUM_SPLIT_READS}       | 0.1-0.4 (PG libraries) 0.3+ (other libraries) |
-| Fraction of zero-distance pairs                                 | {ZERO_DIST_PAIRS}       | 0-0.25                                        |
-| Fraction of duplicate reads*                                 | {NUM_DUPE_READS}       | 0-0.5                                        |
-| Number of total reads desired for scaffolding                                 | {NUM_READS_NEEDED}       | 100M - 500M                                        |
-| Number of total reads desired for deconvolution                                 | {DECON_READS_NEEDED}       | 10M - 200M                                        |
+| Fraction of read pairs >10KB apart                              | {NUM_10KB_PAIRS}        | 0.01-0.15                                    |
+| Fraction of read pairs mapping to different contigs/chromosomes | {NUM_DIFF_CONTIG_PAIRS} | 0.1-0.6 (contigs)<br>0.01-0.2 (chromosomes)      |
+| Fraction of split reads                                         | {NUM_SPLIT_READS}       | 0.01-0.1 (PG libraries) 0.3+ (other libraries) |
+| Fraction of zero-distance pairs                                 | {ZERO_DIST_PAIRS}       | 0-0.2                                        |
+| Fraction of duplicate reads*                                 | {NUM_DUPE_READS}       | 0-0.1                                        |
 
 
 </center>
