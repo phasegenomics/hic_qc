@@ -3,9 +3,11 @@
 # takes a bam file and makes a histogram of distances between mate alignments to the 
 # reference assembly
 # takes the first 1M read pairs by default
+
 ### USAGE:
-# python bam_to_mate_hist.py -b <BAM_FILE> -n <NUM_READS_TO_USE>
-# creates a file Read_mate_dist.pdf in the working directory with relevant plots.
+# python bam_to_mate_hist.py -b <BAM_FILE> -n <NUM_READS_TO_USE> -o <outfile_stub>
+# creates files in the working directory with relevant plots, also text files of statistics.
+# flip -r flag  (assuming you have dependencies to make a PDF report with everything together).
 
 import sys
 import pysam
@@ -51,7 +53,6 @@ def parse_args(desc):
 def is_split_read(read):
     tags = read.get_tags()
     is_split = any([tag[0] == "SA" for tag in tags])
-    #print [tag[0] for tag in tags], is_split
     return is_split
 
 
@@ -123,8 +124,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                     zero_dists += 1
 
             num += 1
-
-    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num
+    dists = dists[0:num]
+    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num, n50, total_len
 
 
 def calc_n50_from_header(header, xx=50.0):
@@ -340,11 +341,16 @@ if __name__ == "__main__":
     print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots" \
           " are written to {2}*".format(num_reads, bamfile, outfile_name)
 
-    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
-                                                                count_diff_refname_stub=count_diff_refname_stub)
+    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads, n50, total_len = parse_bam_file(
+                              num_reads=num_reads, bamfile=bamfile, count_diff_refname_stub=count_diff_refname_stub)
 
     stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads]
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
+
+    it = open("god", "w")
+    for dist in dists:
+        it.write(str(dist)+"\n")
+    it.close()
 
     stat_dict = extract_stats(stat_list=stat_list, bamfile=bamfile, outfile_name=outfile_name,
                               count_diff_refname_stub=count_diff_refname_stub)
