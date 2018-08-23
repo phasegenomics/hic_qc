@@ -236,7 +236,9 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         'no-outline': None
     }
 
-    template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template.md")
+    template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template_versioned.md")
+    if not os.path.exists(template_path):
+        template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template.md")
     style_path = os.path.join(qc_repo_path, "collateral", "style.css")
     if not os.path.exists(template_path):
         UserWarning("can't find markdown template at {0}! skipping making template.".format(
