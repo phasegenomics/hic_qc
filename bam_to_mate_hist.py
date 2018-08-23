@@ -288,9 +288,14 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
                 "NUM_SPLIT_READS",
                 "NUM_DUPE_READS"]
 
-    out_dict = est_proportions_pretty(stat_dict=stat_dict, stats=to_props)
     stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
     num_pairs = stat_dict["NUM_PAIRS"]
+
+    out_dict = est_proportions_pretty(stat_dict=stat_dict, stats=to_props)
+    # these two are calculated by read rather than by pair, correct
+    # a little unwieldy but better than it was
+    out_dict["NUM_SPLIT_READS"] = float(out_dict["NUM_SPLIT_READS"]) / 2.
+    out_dict["NUM_DUPE_READS"] = float(out_dict["NUM_DUPE_READS"]) / 2.
 
     print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
     stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
