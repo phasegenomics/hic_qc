@@ -69,7 +69,6 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     with pysam.AlignmentFile(bamfile, 'rb') as bamfile_open:
         refs = bamfile_open.references
         n50, total_len, greater_10k = calc_n50_from_header(bamfile_open.header)
-        #print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
         diff_chr = 0
         diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
         split_reads = 0
@@ -82,11 +81,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         for read in bamfile_open:
             if num >= num_reads:
                 break
-            # if (num % 10000) == 0:
-            #	print num
 
             # count dupes and split reads for both F+R
-
             if is_split_read(read):
                 split_reads += 1
 
@@ -114,7 +110,6 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                 if count_diff_refname_stub:
                     ref1_stub = refs[ref1].split(".")[0]
                     ref2_stub = refs[ref2].split(".")[0]
-                    # print ref1_stub, ref2_stub
                     if ref1_stub != ref2_stub:
                         diff_stub += 1
 
@@ -144,7 +139,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     stat_dict["TOTAL_LEN"] = total_len
     stat_dict["GREATER_10K_CONTIGS"] = greater_10k
     stat_dict["NUM_CONTIGS"] = len(refs)
-    #return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num, n50, total_len
+
     return stat_dict
 
 
@@ -168,15 +163,63 @@ def calc_n50_from_header(header, xx=50.0):
 
     cumsum = 0
     contig_len = 0
-    greater_10k = 0
     for length in reversed(lens):
-        contig_len = length
+        contig_len = int(length)
         cumsum += length
-        if contig_len > 10000:
-            greater_10k += 1
         if cumsum >= nxx_len:
             break
-    return contig_len, total, greater_10k
+    greater_10k = [contig for contig in lens if contig > 1e4]
+    return contig_len, total, len(greater_10k)
+
+
+def html_from_judgement(good, bad):
+    '''return a formatted HTML string based on two judgment bool values
+    '''
+
+    if good and not bad:
+        return '<span style="background-color:green">PASS</span>'
+    elif not good and bad:
+        return '<span style="background-color:red">FAIL</span>'
+    elif good and bad:
+        return '<span style="background-color:yellow">MIXED RESULTS</span>'
+    elif not good and not bad:
+        return '<span style="background-color:yellow">LOW SIGNAL</span>'
+    else:
+        raise ValueError("logical impossibility!")
+
+
+def hic_library_judger(out_dict):
+    '''Pass judgement on the library according to certain mostly subjective ideas about what is good
+
+    Args:
+        stat_dict ({str: float/str}): mapping of lib characteristics to their values
+
+    Returns:
+        judgement (str): an HTML string to put into pass/fail box
+    '''
+    long_contacts = (float(out_dict["NUM_10KB_PAIRS"]) > 0.05)
+    long_floor = (float(out_dict["NUM_10KB_PAIRS"]) > 0.01)
+    useful_contacts = (float(out_dict["NUM_DIFF_CONTIG_PAIRS"]) > 0.3)
+    low_contiguity = (out_dict["N50"] < 100000)
+    many_zero_pairs = (float(out_dict["ZERO_DIST_PAIRS"]) > 0.1)
+    many_many_zero_pairs = (float(out_dict["ZERO_DIST_PAIRS"]) > 0.2)
+    high_dupe = (float(out_dict["NUM_DUPE_READS"]) > 0.1 and out_dict["NUM_READS"] <= 1e6) \
+                or (float(out_dict["NUM_DUPE_READS"]) > 0.3 and out_dict["NUM_READS"] <= 1e9)
+
+    print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
+    if (long_contacts or useful_contacts) and (low_contiguity or long_floor):
+        good = True
+    else:
+        good = False
+
+    bad = False
+    if low_contiguity:
+        if many_many_zero_pairs or high_dupe:
+            bad = True
+    else:
+        if many_zero_pairs or high_dupe or not long_floor:
+            bad = True
+    return html_from_judgement(good, bad)
 
 
 def make_histograms(dists, bamfile, outfile_name):
@@ -268,7 +311,7 @@ def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
 
 
 def est_proportions_pretty(stat_dict, stats=None):
-    '''Compute proportions from the dictionary for specificied statistics, make them printable. '''
+    '''Compute proportions from the dictionary for specified statistics, make them printable. '''
     out_dict = stat_dict.copy()
     num_pairs = stat_dict["NUM_PAIRS"]
     for stat in stats:
@@ -381,7 +424,8 @@ def write_stat_table(stat_dict, outfile_name):
                      "num_contigs\t{NUM_CONTIGS}\n" \
                      "greater_10k_contigs\t{GREATER_10K_CONTIGS}\n" \
                      "mapq0_reads\t{MAPQ0_READS}\n" \
-                     "total_len\t{TOTAL_LEN}\n"
+                     "total_len\t{TOTAL_LEN}\n" \
+                     "pass_fail\t{JUDGEMENT}\n"
                      #"desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
                      #"desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
 
@@ -406,6 +450,7 @@ if __name__ == "__main__":
 
     out_dict = extract_stats(stat_dict=stat_dict, bamfile=bamfile, outfile_name=outfile_name,
                              count_diff_refname_stub=count_diff_refname_stub)
+    out_dict["JUDGEMENT"] = hic_library_judger(out_dict)
 
     make_histograms(dists=out_dict["dists"], bamfile=bamfile, outfile_name=outfile_name)
 
