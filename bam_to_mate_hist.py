@@ -181,10 +181,11 @@ def calc_n50_from_header(header, xx=50.0):
 
 def make_histograms(dists, bamfile, outfile_name):
     '''make the read distance histograms using matplotlib and write them to disk.
-	Args:
-		dists (numpy array of ints): Distances to plot in histogram.
-		bamfile (str): path to bamfile of dists
-	'''
+    Args:
+        dists (numpy array of ints): Distances to plot in histogram.
+        bamfile (str): path to bamfile of dists
+    '''
+
     dists = dists[[dist > 0 for dist in dists]]
     num_dists = len(dists)
     # with PdfPages(outfile_name) as pdf:
@@ -402,7 +403,7 @@ if __name__ == "__main__":
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     out_dict = extract_stats(stat_dict=stat_dict, bamfile=bamfile, outfile_name=outfile_name,
-                              count_diff_refname_stub=count_diff_refname_stub)
+                             count_diff_refname_stub=count_diff_refname_stub)
 
     make_histograms(dists=out_dict["dists"], bamfile=bamfile, outfile_name=outfile_name)
 
