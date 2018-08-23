@@ -51,3 +51,6 @@ We therefore rely more heavily on metrics that directly relate to the usefulness
 **IMPORTANT NOTE: THE DUPLICATE FLAG IS NOT SET BY DEFAULT IN A BAM FILE. YOU NEED TO EXPLICITLY SET IT BY E.G. RUNNING SAMBLASTER ON YOUR BAM FILE. IF THE FRACTION OF DUPLICATES IS EXACTLY ZERO, IT PROBABLY MEANS THAT THE FLAG HAS NOT BEEN SET.**
 
 Sequencing libraries frequently contain duplicate reads, due to PCR or optical issues. These are generally considered to be non-informative, and are thus bad. Higher proportions of duplicate reads are also correlated with low library complexity and poor library performance generally.
+
+#### REPORT VERSION: COMMIT_VERSION
+
