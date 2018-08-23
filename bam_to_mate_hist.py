@@ -69,12 +69,13 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     with pysam.AlignmentFile(bamfile, 'rb') as bamfile_open:
         refs = bamfile_open.references
         n50, total_len, greater_10k = calc_n50_from_header(bamfile_open.header)
-        print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
+        #print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
         diff_chr = 0
         diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
         split_reads = 0
         dupe_reads = 0
         zero_dists = 0
+        mapq0_reads = 0
         num = 0
         dists = np.empty([num_reads, 1], dtype=int)
         last_read = ""
@@ -95,6 +96,9 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
             #if bool(int(read.flag) & 1024):
             #if 1024 <= int(read.flag) < 2048:
                 dupe_reads += 1
+
+            if read.mapping_quality == 0:
+                mapq0_reads += 1
 
             # only count per pair for other stats
             if read.qname == last_read:
@@ -136,6 +140,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     stat_dict["ZERO_DIST_PAIRS"] = zero_dists
     stat_dict["NUM_PAIRS"] = num
     stat_dict["N50"] = n50
+    stat_dict["MAPQ0_READS"] = mapq0_reads
     stat_dict["TOTAL_LEN"] = total_len
     stat_dict["GREATER_10K_CONTIGS"] = greater_10k
     stat_dict["NUM_CONTIGS"] = len(refs)
@@ -261,7 +266,7 @@ def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
 
 def est_proportions_pretty(stat_dict, stats=None):
     '''Compute proportions from the dictionary for specificied statistics, make them printable. '''
-    out_dict = stat_dict
+    out_dict = stat_dict.copy()
     num_pairs = stat_dict["NUM_PAIRS"]
     for stat in stats:
         out_dict[stat] = "{0:.3f}".format(float(stat_dict[stat]) / num_pairs)
@@ -281,14 +286,20 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     Returns:
         stat_dict ({str:float/str}: mappings of the stats and data suitable to be consumed by report generator
     '''
+    # some path handling, doesn't need to happen in here really.
+    stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
+    stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
+    stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
+    print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
+
     # only some things in dict get pretty floatified
     to_props = ["ZERO_DIST_PAIRS",
                 "NUM_10KB_PAIRS",
                 "NUM_DIFF_CONTIG_PAIRS",
                 "NUM_SPLIT_READS",
-                "NUM_DUPE_READS"]
+                "NUM_DUPE_READS",
+                "MAPQ0_READS"]
 
-    stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
     num_pairs = stat_dict["NUM_PAIRS"]
 
     out_dict = est_proportions_pretty(stat_dict=stat_dict, stats=to_props)
@@ -296,16 +307,19 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     # a little unwieldy but better than it was
     out_dict["NUM_SPLIT_READS"] = float(out_dict["NUM_SPLIT_READS"]) / 2.
     out_dict["NUM_DUPE_READS"] = float(out_dict["NUM_DUPE_READS"]) / 2.
-
-    print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
-    stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
-    stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
+    out_dict["MAPQ0_READS"] = float(out_dict["MAPQ0_READS"]) / 2.
 
     print "Number of contigs (more is harder):"
     print stat_dict["NUM_CONTIGS"]
 
     print "Number of contigs greater than 10KB (longer contigs are better):"
     print stat_dict["GREATER_10K_CONTIGS"]
+
+    print "N50 of input assembly (longer contigs are better):"
+    print stat_dict["N50"]
+
+    print "Length of input assembly (bigger is harder):"
+    print stat_dict["TOTAL_LEN"]
 
     print "Counts of zero distances (many is a sign of bad prep):"
     print stat_dict["ZERO_DIST_PAIRS"], "of total", num_pairs, "fraction ", out_dict["ZERO_DIST_PAIRS"]
@@ -318,6 +332,9 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
 
     print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
     print stat_dict["NUM_SPLIT_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_SPLIT_READS"]
+
+    print "Count of MAPQ zero reads (bad, ambiguously mapped):"
+    print stat_dict["MAPQ0_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["MAPQ0_READS"]
 
     print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_dict["NUM_DUPE_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_DUPE_READS"]
@@ -360,6 +377,7 @@ def write_stat_table(stat_dict, outfile_name):
                      "n50\t{N50}\n" \
                      "num_contigs\t{NUM_CONTIGS}\n" \
                      "greater_10k_contigs\t{GREATER_10K_CONTIGS}\n" \
+                     "mapq0_reads\t{MAPQ0_READS}\n" \
                      "total_len\t{TOTAL_LEN}\n"
                      #"desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
                      #"desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
@@ -377,8 +395,7 @@ if __name__ == "__main__":
     make_report = c_args["make_report"]
 
     count_diff_refname_stub = c_args["count_diff_refname_stub"]
-    print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots" \
-          " are written to {2}*".format(num_reads, bamfile, outfile_name)
+    print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality".format(num_reads, bamfile)
 
     stat_dict = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                count_diff_refname_stub=count_diff_refname_stub)
