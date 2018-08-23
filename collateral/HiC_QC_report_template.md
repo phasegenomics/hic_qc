@@ -18,13 +18,17 @@
 | Fraction of split reads                                         | {NUM_SPLIT_READS}       | 0.01-0.1 (PG libraries) 0.3+ (other libraries) |
 | Fraction of zero-distance pairs                                 | {ZERO_DIST_PAIRS}       | 0-0.2                                        |
 | Fraction of reads with zero map quality                         | {MAPQ0_READS}           | 0-0.1                                        |
-| Fraction of duplicate reads*                                 | {NUM_DUPE_READS}           | 0-0.1                                        |
+| Fraction of duplicate reads*                                    | {NUM_DUPE_READS}        | 0-0.1                                        |
+| (SUBJECTIVE!!) Hi-C library judgement                           | {JUDGEMENT}             | pass/fail/mixed-results/low-signal                                        |
 
 
 </center>
 *If this quantity is zero, see duplicate read section below.
 
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
+
+
+<div class="page"/>
 
 ## Aligned mate distance histograms
 !["Long range interaction histogram"]({PATH_TO_LONG_HIST})
