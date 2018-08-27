@@ -13,8 +13,8 @@
 | Fraction of read pairs mapping to different contigs/chromosomes | {NUM_DIFF_CONTIG_PAIRS} | 0.1-0.6 (contigs)<br>0.01-0.2 (chromosomes)      |
 | Fraction of split reads                                         | {NUM_SPLIT_READS}       | 0.01-0.1 (PG libraries) 0.3+ (other libraries) |
 | Fraction of zero-distance pairs                                 | {ZERO_DIST_PAIRS}       | 0-0.2                                        |
-| Fraction of duplicate reads*                                 | {NUM_DUPE_READS}       | 0-0.1                                        |
-
+| Fraction of duplicate reads (sampled)*                          | {NUM_DUPE_READS}        | 0-0.1                                        |
+| Fraction of duplicate reads (extrapolated to {TARGET_READ_TOTAL} reads)*                     | {NUM_DUPE_READS_EXTRAP} | 0-0.5                                        |
 
 </center>
 *If this quantity is zero, see duplicate read section below.
@@ -25,6 +25,8 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 !["Long range interaction histogram"]({PATH_TO_LONG_HIST})
 !["Short range interaction histogram"]({PATH_TO_SHORT_HIST})
 
+## Duplicate read saturation curve
+!["Duplicate read saturation curve"]({PATH_TO_DUP_SAT})
 
 ## Alignment distance statistics and plots
 We briefly describe some of the statistics we compute below to aid interpretation of this report.
