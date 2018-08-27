@@ -7,7 +7,7 @@
 ### USAGE:
 # python bam_to_mate_hist.py -b <BAM_FILE> -n <NUM_READS_TO_USE> -o <outfile_stub>
 # creates files in the working directory with relevant plots, also text files of statistics.
-# flip -r flag  (assuming you have dependencies to make a PDF report with everything together).
+# flip -r flag  (assuming you have dependencies) to make a PDF report with everything together.
 
 import sys
 import pysam
@@ -24,13 +24,13 @@ import markdown as md
 
 def parse_args(desc):
     '''parse command-line args
-	
-	Args: 
-		desc(str): program description, e.g. __file__
-	
-	Returns:
-		args (dict): dict of the form {arg_name: arg_value}
-	'''
+
+    Args:
+        desc(str): program description, e.g. __file__
+
+    Returns:
+        args (dict): dict of the form {arg_name: arg_value}
+    '''
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("-n", "--num_reads", default=1000000,
                         help="Number of reads from bam file to use. default: 1000000")
@@ -50,6 +50,15 @@ def parse_args(desc):
 
 
 def is_split_read(read):
+    '''Decide whether a read (pysam.AlignedSegment) is a duplicate
+
+    Args:
+        read (pysam.AlignedSegment): a read read from a BAM file by pysam. We want to know if it is a duplicate. Assumes
+         that the duplicate flag is set in the BAM file.
+
+    Returns:
+        bool
+    '''
     tags = read.get_tags()
     is_split = any([tag[0] == "SA" for tag in tags])
     return is_split
@@ -168,12 +177,20 @@ def calc_n50_from_header(header, xx=50.0):
         cumsum += length
         if cumsum >= nxx_len:
             break
-    greater_10k = [contig for contig in lens if contig > 1e4]
-    return contig_len, total, len(greater_10k)
+    greater_10k = sum(x > 1e4 for x in lens)
+    return contig_len, total, greater_10k
 
 
 def html_from_judgement(good, bad):
     '''return a formatted HTML string based on two judgment bool values
+        Args:
+            good (bool): does the hi-c library show characteristics of "goodness", e.g. many long-distance contacts etc.
+            bad (bool): does the hi-c library show "bad" characteristics, e.g. zero-distance reads or too many duplicates.
+        Returns:
+            str: an HTML string to be substituted into the report to subjectively grade the assembly. 4 possibilities.
+        Raises:
+            ValueError: if impossible logical situations occur given two bools.
+
     '''
 
     if good and not bad:
@@ -197,14 +214,14 @@ def hic_library_judger(out_dict):
     Returns:
         judgement (str): an HTML string to put into pass/fail box
     '''
-    long_contacts = (float(out_dict["NUM_10KB_PAIRS"]) > 0.05)
-    long_floor = (float(out_dict["NUM_10KB_PAIRS"]) > 0.01)
-    useful_contacts = (float(out_dict["NUM_DIFF_CONTIG_PAIRS"]) > 0.3)
-    low_contiguity = (out_dict["N50"] < 100000)
-    many_zero_pairs = (float(out_dict["ZERO_DIST_PAIRS"]) > 0.1)
-    many_many_zero_pairs = (float(out_dict["ZERO_DIST_PAIRS"]) > 0.2)
-    high_dupe = (float(out_dict["NUM_DUPE_READS"]) > 0.1 and out_dict["NUM_READS"] <= 1e6) \
-                or (float(out_dict["NUM_DUPE_READS"]) > 0.3 and out_dict["NUM_READS"] <= 1e9)
+    long_contacts = float(out_dict["NUM_10KB_PAIRS"]) > 0.05
+    long_floor = float(out_dict["NUM_10KB_PAIRS"]) > 0.01
+    useful_contacts = float(out_dict["NUM_DIFF_CONTIG_PAIRS"]) > 0.3
+    low_contiguity = out_dict["N50"] < 100000
+    many_zero_pairs = float(out_dict["ZERO_DIST_PAIRS"]) > 0.1
+    many_many_zero_pairs = float(out_dict["ZERO_DIST_PAIRS"]) > 0.2
+    high_dupe = (float(out_dict["NUM_DUPE_READS"]) > 0.05 and out_dict["NUM_READS"] <= 1e6) \
+                or (float(out_dict["NUM_DUPE_READS"]) > 0.3 and out_dict["NUM_READS"] <= 1e8)
 
     print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
     if (long_contacts or useful_contacts) and (low_contiguity or long_floor):
@@ -336,7 +353,7 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
     stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
     stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
-    print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
+    print "Histograms written to:", stat_dict["PATH_TO_LONG_HIST"], stat_dict["PATH_TO_SHORT_HIST"]
 
     # only some things in dict get pretty floatified
     to_props = ["ZERO_DIST_PAIRS",
@@ -349,7 +366,7 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     num_pairs = stat_dict["NUM_PAIRS"]
 
     out_dict = est_proportions_pretty(stat_dict=stat_dict, stats=to_props)
-    # these two are calculated by read rather than by pair, correct
+    # these properties are calculated by read rather than by pair, correct
     # a little unwieldy but better than it was
     out_dict["NUM_SPLIT_READS"] = float(out_dict["NUM_SPLIT_READS"]) / 2.
     out_dict["NUM_DUPE_READS"] = float(out_dict["NUM_DUPE_READS"]) / 2.
@@ -406,6 +423,7 @@ def write_stat_table(stat_dict, outfile_name):
 
     Args:
         stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
+        outfile_name (str): a path to which to write the data.
 
     '''
     if not outfile_name.endswith(".tsv"):
