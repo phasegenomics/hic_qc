@@ -23,26 +23,29 @@
 | (SUBJECTIVE!!) Hi-C library judgement                           | {JUDGEMENT}             | pass/fail/mixed-results/low-signal           |
 </center>
 
-\*If this quantity is zero, see duplicate read section below.
+*If this quantity is zero, see duplicate read section below. If quantity is negative, there are too few reads sampled to estimate duplicates.
 
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 
 
-<div class="page"/>
-
 ## Aligned mate distance histograms
+
 !["Long range interaction histogram"]({PATH_TO_LONG_HIST})
 !["Short range interaction histogram"]({PATH_TO_SHORT_HIST})
 
 ## Duplicate read saturation curve
+
 !["Duplicate read saturation curve"]({PATH_TO_DUP_SAT})
 
 ## Alignment distance statistics and plots
 We briefly describe some of the statistics we compute below to aid interpretation of this report.
+
 ### Fraction of read pairs > 10KB apart
 More is better.
+
 ### Fraction of read pairs mapping to different contigs or chromosomes
 More is better.
+
 ### Fraction of zero-distance pairs
 Less is better. Seems to be due to very short library inserts or sometimes mapping artifacts; can be an issue on some Illumina instruments such as iSeq and HiSeqX. Still, even libraries with up to 70% zero-distance pairs can yield usable results sometimes.
 

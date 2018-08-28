@@ -165,7 +165,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
 def saturation(x, V, K):
     return V * x / (x + K)
 
-def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, target_y=None):
+def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sample=100000, target_y=None):
     '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
 
         Args:
@@ -182,8 +182,15 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, target_y=
     if not outfile.endswith('.dup_saturation.png'):
         outfile += '.dup_saturation.png'
 
-    params, params_cov = optimize.curve_fit(saturation, x_array, y_array, p0=[x_array[-1], x_array[-1]/2])
+    if x_array[-1] < min_sample:
+        UserWarning("too few reads to estimate duplication rate (<{0})!!".format(min_sample))
+        fig, ax = plt.subplots(1)
+        plt.title('Insufficient reads to estimate duplication rate!!!')
+        plt.savefig(outfile)
+        plt.close()
+        return -1, -1, target_x
 
+    params, params_cov = optimize.curve_fit(saturation, x_array, y_array, p0=[x_array[-1], x_array[-1]/2], maxfev=6000)
     V = params[0]
     K = params[1]
 
@@ -305,10 +312,10 @@ def hic_library_judger(out_dict):
     low_contiguity = out_dict["N50"] < 100000
     many_zero_pairs = float(out_dict["ZERO_DIST_PAIRS"]) > 0.1
     many_many_zero_pairs = float(out_dict["ZERO_DIST_PAIRS"]) > 0.2
-    high_dupe = (float(out_dict["NUM_DUPE_READS"]) > 0.05 and out_dict["NUM_READS"] <= 1e6) \
-                or (float(out_dict["NUM_DUPE_READS"]) > 0.3 and out_dict["NUM_READS"] <= 1e8)
+    high_dupe = (float(out_dict["NUM_DUPE_READS"]) > 0.05 and out_dict["NUM_PAIRS"] <= 1e6) \
+                or (float(out_dict["NUM_DUPE_READS"]) > 0.3 and out_dict["NUM_PAIRS"] <= 1e8)
 
-    print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
+    #print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
     if (long_contacts or useful_contacts) and (low_contiguity or long_floor):
         good = True
     else:
@@ -381,19 +388,26 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         'no-outline': None
     }
 
-    template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template_versioned.md")
-    if not os.path.exists(template_path):
-        template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template.md")
+    template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template.md")
     style_path = os.path.join(qc_repo_path, "collateral", "style.css")
+    commit_path = os.path.join(qc_repo_path, "collateral", "commit_id")
     if not os.path.exists(template_path):
         UserWarning("can't find markdown template at {0}! skipping making template.".format(
             qc_repo_path)
         )
         sys.exit()
 
+    if os.path.exists(commit_path):
+        with open(commit_path) as commit_file:
+            commit_id = commit_file.read()
+    else:
+        commit_id = "unversioned"
+
+
     with open(template_path) as file:
         str = file.read()
-        sub_str = str.format(**stat_dict)  # splat the statistics and path into the markdown, render as html
+        sub_str = str.replace("COMMIT_VERSION", commit_id)  # versions report
+        sub_str = sub_str.format(**stat_dict)  # splat the statistics and path into the markdown, render as html
         html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
 
         # write out just html
@@ -490,10 +504,10 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     print "Count of MAPQ zero reads (bad, ambiguously mapped):"
     print stat_dict["MAPQ0_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["MAPQ0_READS"]
 
-    print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
+    print "Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_dict["NUM_DUPE_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_DUPE_READS"]
 
-    print 'Duplicate fraction at {} reads: {:.3f}'.format(stat_dict['TARGET_READ_TOTAL'], out_dict['NUM_DUPE_READS_EXTRAP'])
+    print 'Duplicate fraction at {} reads: {:.3f} (-1 if insufficient to estimate)'.format(stat_dict['TARGET_READ_TOTAL'], out_dict['NUM_DUPE_READS_EXTRAP'])
 
     #stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
     #print "Number of reads needed for informative scaffolding, estimated based on sample:"
