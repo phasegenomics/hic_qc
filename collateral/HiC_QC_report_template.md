@@ -28,7 +28,7 @@
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 
 
-</div class="page">
+<div class="page"/>
 
 ## Aligned mate distance histograms
 !["Long range interaction histogram"]({PATH_TO_LONG_HIST})
