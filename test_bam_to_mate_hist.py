@@ -25,8 +25,7 @@ class MyTestCase(unittest.TestCase):
         num_reads = 1000
         bamfile = "collateral/abc_test.bam"
         count_diff_refname_stub = False
-        self.diff_chr, self.dists, self.diff_stub, self.split_reads, self.dupe_reads, self.refs, self.zero_dists, \
-        self.num_pairs, self.n50, self.total_len = b2mh.parse_bam_file(
+        self.stat_dict = b2mh.parse_bam_file(
             num_reads=num_reads, bamfile=bamfile, count_diff_refname_stub=count_diff_refname_stub)
 
         self.example_read = pysam.AlignedSegment()
@@ -47,29 +46,32 @@ class MyTestCase(unittest.TestCase):
 
     # all manually measured in the BAM file...
     def test_count_diff_chr_pairs(self):
-        self.assertEqual(self.diff_chr, 5)
+        self.assertEqual(self.stat_dict["NUM_DIFF_CONTIG_PAIRS"], 5)
 
     def test_count_splits(self):
-        self.assertEqual(self.split_reads, 6)
+        self.assertEqual(self.stat_dict["NUM_SPLIT_READS"], 6)
 
     def test_count_dupe_reads(self):
-        self.assertEqual(self.dupe_reads, 2)
+        self.assertEqual(self.stat_dict["NUM_DUPE_READS"], 2)
 
     def test_refs_right(self):
-        self.assertEqual(len(self.refs), 1288)
+        self.assertEqual(len(self.stat_dict["refs"]), 1288)
+
+    def test_greater_10k_contigs_right(self):
+        self.assertEqual(self.stat_dict["GREATER_10K_CONTIGS"], 229)
 
     def test_count_zero_dist_pairs(self):
-        self.assertEqual(self.zero_dists, 38)
+        self.assertEqual(self.stat_dict["ZERO_DIST_PAIRS"], 38)
 
     def test_count_num_pairs(self):
-        self.assertEqual(self.num_pairs, 107)
+        self.assertEqual(self.stat_dict["NUM_PAIRS"], 107)
 
     def test_dists_right_len(self):
-        self.assertEqual(len(self.dists), self.num_pairs)
+        self.assertEqual(len(self.stat_dict["dists"]), self.stat_dict["NUM_PAIRS"])
 
     def test_dists_right_num_zeros(self):
-        num_zeros = list(self.dists).count(0)
-        self.assertEqual(num_zeros, self.zero_dists)
+        num_zeros = list(self.stat_dict["dists"]).count(0)
+        self.assertEqual(num_zeros, self.stat_dict["ZERO_DIST_PAIRS"])
 
     def test_is_split_read_false(self):
         self.assertFalse(b2mh.is_split_read(self.example_read))

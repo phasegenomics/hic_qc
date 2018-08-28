@@ -7,7 +7,7 @@
 ### USAGE:
 # python bam_to_mate_hist.py -b <BAM_FILE> -n <NUM_READS_TO_USE> -o <outfile_stub>
 # creates files in the working directory with relevant plots, also text files of statistics.
-# flip -r flag  (assuming you have dependencies to make a PDF report with everything together).
+# flip -r flag  (assuming you have dependencies) to make a PDF report with everything together.
 
 import sys
 import pysam
@@ -22,16 +22,15 @@ import matplotlib.pyplot as plt
 import pdfkit
 import markdown as md
 
-
 def parse_args(desc):
     '''parse command-line args
-	
-	Args: 
-		desc(str): program description, e.g. __file__
-	
-	Returns:
-		args (dict): dict of the form {arg_name: arg_value}
-	'''
+
+    Args:
+        desc(str): program description, e.g. __file__
+
+    Returns:
+        args (dict): dict of the form {arg_name: arg_value}
+    '''
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("-n", "--num_reads", default=1000000,
                         help="Number of reads from bam file to use. default: 1000000")
@@ -51,6 +50,15 @@ def parse_args(desc):
 
 
 def is_split_read(read):
+    '''Decide whether a read (pysam.AlignedSegment) is a duplicate
+
+    Args:
+        read (pysam.AlignedSegment): a read read from a BAM file by pysam. We want to know if it is a duplicate. Assumes
+         that the duplicate flag is set in the BAM file.
+
+    Returns:
+        bool
+    '''
     tags = read.get_tags()
     is_split = any([tag[0] == "SA" for tag in tags])
     return is_split
@@ -69,24 +77,21 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     '''
     with pysam.AlignmentFile(bamfile, 'rb') as bamfile_open:
         refs = bamfile_open.references
-        n50, total_len = calc_n50_from_header(bamfile_open.header)
-        print "assembly N50: {0} bp, assembly length: {1} bp".format(n50, total_len)
+        n50, total_len, greater_10k = calc_n50_from_header(bamfile_open.header)
         diff_chr = 0
         diff_stub = 0  # if reference name is trimmed back to "." delim, how many among such?
         split_reads = 0
         dupe_reads = 0
         zero_dists = 0
+        mapq0_reads = 0
         num = 0
         dists = np.empty([num_reads, 1], dtype=int)
         last_read = ""
         for read in bamfile_open:
             if num >= num_reads:
                 break
-            # if (num % 10000) == 0:
-            #	print num
 
             # count dupes and split reads for both F+R
-
             if is_split_read(read):
                 split_reads += 1
 
@@ -96,6 +101,9 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
             #if bool(int(read.flag) & 1024):
             #if 1024 <= int(read.flag) < 2048:
                 dupe_reads += 1
+
+            if read.mapping_quality == 0:
+                mapq0_reads += 1
 
             # only count per pair for other stats
             if read.qname == last_read:
@@ -111,7 +119,6 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                 if count_diff_refname_stub:
                     ref1_stub = refs[ref1].split(".")[0]
                     ref2_stub = refs[ref2].split(".")[0]
-                    # print ref1_stub, ref2_stub
                     if ref1_stub != ref2_stub:
                         diff_stub += 1
 
@@ -125,7 +132,24 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
 
             num += 1
     dists = dists[0:num]
-    return diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num, n50, total_len
+    stat_dict = {}
+    above_10k = len([dist for dist in dists if dist > 10000])
+    stat_dict["NUM_10KB_PAIRS"] = above_10k
+    stat_dict["NUM_DIFF_CONTIG_PAIRS"] = diff_chr
+    stat_dict["dists"] = dists
+    stat_dict["diff_stub"] = diff_stub
+    stat_dict["NUM_SPLIT_READS"] = split_reads
+    stat_dict["NUM_DUPE_READS"] = dupe_reads
+    stat_dict["refs"] = refs
+    stat_dict["ZERO_DIST_PAIRS"] = zero_dists
+    stat_dict["NUM_PAIRS"] = num
+    stat_dict["N50"] = n50
+    stat_dict["MAPQ0_READS"] = mapq0_reads
+    stat_dict["TOTAL_LEN"] = total_len
+    stat_dict["GREATER_10K_CONTIGS"] = greater_10k
+    stat_dict["NUM_CONTIGS"] = len(refs)
+
+    return stat_dict
 
 
 def calc_n50_from_header(header, xx=50.0):
@@ -149,19 +173,79 @@ def calc_n50_from_header(header, xx=50.0):
     cumsum = 0
     contig_len = 0
     for length in reversed(lens):
-        contig_len = length
+        contig_len = int(length)
         cumsum += length
         if cumsum >= nxx_len:
             break
-    return contig_len, total
+    greater_10k = sum(x > 1e4 for x in lens)
+    return contig_len, total, greater_10k
+
+
+def html_from_judgement(good, bad):
+    '''return a formatted HTML string based on two judgment bool values
+        Args:
+            good (bool): does the hi-c library show characteristics of "goodness", e.g. many long-distance contacts etc.
+            bad (bool): does the hi-c library show "bad" characteristics, e.g. zero-distance reads or too many duplicates.
+        Returns:
+            str: an HTML string to be substituted into the report to subjectively grade the assembly. 4 possibilities.
+        Raises:
+            ValueError: if impossible logical situations occur given two bools.
+
+    '''
+
+    if good and not bad:
+        return '<span style="background-color:green">PASS</span>'
+    elif not good and bad:
+        return '<span style="background-color:red">FAIL</span>'
+    elif good and bad:
+        return '<span style="background-color:yellow">MIXED RESULTS</span>'
+    elif not good and not bad:
+        return '<span style="background-color:yellow">LOW SIGNAL</span>'
+    else:
+        raise ValueError("logical impossibility!")
+
+
+def hic_library_judger(out_dict):
+    '''Pass judgement on the library according to certain mostly subjective ideas about what is good
+
+    Args:
+        stat_dict ({str: float/str}): mapping of lib characteristics to their values
+
+    Returns:
+        judgement (str): an HTML string to put into pass/fail box
+    '''
+    long_contacts = float(out_dict["NUM_10KB_PAIRS"]) > 0.05
+    long_floor = float(out_dict["NUM_10KB_PAIRS"]) > 0.01
+    useful_contacts = float(out_dict["NUM_DIFF_CONTIG_PAIRS"]) > 0.3
+    low_contiguity = out_dict["N50"] < 100000
+    many_zero_pairs = float(out_dict["ZERO_DIST_PAIRS"]) > 0.1
+    many_many_zero_pairs = float(out_dict["ZERO_DIST_PAIRS"]) > 0.2
+    high_dupe = (float(out_dict["NUM_DUPE_READS"]) > 0.05 and out_dict["NUM_READS"] <= 1e6) \
+                or (float(out_dict["NUM_DUPE_READS"]) > 0.3 and out_dict["NUM_READS"] <= 1e8)
+
+    print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
+    if (long_contacts or useful_contacts) and (low_contiguity or long_floor):
+        good = True
+    else:
+        good = False
+
+    bad = False
+    if low_contiguity:
+        if many_many_zero_pairs or high_dupe:
+            bad = True
+    else:
+        if many_zero_pairs or high_dupe or not long_floor:
+            bad = True
+    return html_from_judgement(good, bad)
 
 
 def make_histograms(dists, bamfile, outfile_name):
     '''make the read distance histograms using matplotlib and write them to disk.
-	Args:
-		dists (numpy array of ints): Distances to plot in histogram.
-		bamfile (str): path to bamfile of dists
-	'''
+    Args:
+        dists (numpy array of ints): Distances to plot in histogram.
+        bamfile (str): path to bamfile of dists
+    '''
+
     dists = dists[[dist > 0 for dist in dists]]
     num_dists = len(dists)
     # with PdfPages(outfile_name) as pdf:
@@ -212,7 +296,9 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         'no-outline': None
     }
 
-    template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template.md")
+    template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template_versioned.md")
+    if not os.path.exists(template_path):
+        template_path = os.path.join(qc_repo_path, "collateral", "HiC_QC_report_template.md")
     style_path = os.path.join(qc_repo_path, "collateral", "style.css")
     if not os.path.exists(template_path):
         UserWarning("can't find markdown template at {0}! skipping making template.".format(
@@ -241,8 +327,17 @@ def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
     return int(total_num)
 
 
-def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=False):
-    '''Make a dict of results and data suitable to be passed to the report template for splatting.
+def est_proportions_pretty(stat_dict, stats=None):
+    '''Compute proportions from the dictionary for specified statistics, make them printable. '''
+    out_dict = stat_dict.copy()
+    num_pairs = stat_dict["NUM_PAIRS"]
+    for stat in stats:
+        out_dict[stat] = "{0:.3f}".format(float(stat_dict[stat]) / num_pairs)
+    return out_dict
+
+def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=False):
+    '''Process a dict of results and data suitable to be passed to the report template for splatting.
+    Now that dict processing is happening mostly outside of here,
 
     Args:
         stat_list ([str]): the four statistics estimated from the bam file
@@ -254,38 +349,58 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
     Returns:
         stat_dict ({str:float/str}: mappings of the stats and data suitable to be consumed by report generator
     '''
-    stat_dict = {}
+    # some path handling, doesn't need to happen in here really.
     stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
-    num_pairs = stat_list[7]
-    stat_dict["NUM_PAIRS"] = num_pairs
-
-    print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
     stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
     stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
+    print "Histograms written to:", stat_dict["PATH_TO_LONG_HIST"], stat_dict["PATH_TO_SHORT_HIST"]
+
+    # only some things in dict get pretty floatified
+    to_props = ["ZERO_DIST_PAIRS",
+                "NUM_10KB_PAIRS",
+                "NUM_DIFF_CONTIG_PAIRS",
+                "NUM_SPLIT_READS",
+                "NUM_DUPE_READS",
+                "MAPQ0_READS"]
+
+    num_pairs = stat_dict["NUM_PAIRS"]
+
+    out_dict = est_proportions_pretty(stat_dict=stat_dict, stats=to_props)
+    # these properties are calculated by read rather than by pair, correct
+    # a little unwieldy but better than it was
+    out_dict["NUM_SPLIT_READS"] = float(out_dict["NUM_SPLIT_READS"]) / 2.
+    out_dict["NUM_DUPE_READS"] = float(out_dict["NUM_DUPE_READS"]) / 2.
+    out_dict["MAPQ0_READS"] = float(out_dict["MAPQ0_READS"]) / 2.
+
+    print "Number of contigs (more is harder):"
+    print stat_dict["NUM_CONTIGS"]
+
+    print "Number of contigs greater than 10KB (longer contigs are better):"
+    print stat_dict["GREATER_10K_CONTIGS"]
+
+    print "N50 of input assembly (longer contigs are better):"
+    print stat_dict["N50"]
+
+    print "Length of input assembly (bigger is harder):"
+    print stat_dict["TOTAL_LEN"]
 
     print "Counts of zero distances (many is a sign of bad prep):"
-    #unique, counts = np.unique(stat_list[1], return_counts=True)  # tabulates the distances, with indices as the dists
-    #zero_dist = dict(zip(unique, counts))[0]  # first element is the zero-distances
-    zero_dist = stat_list[6]
-    stat_dict["ZERO_DIST_PAIRS"] = "{0:.3f}".format(float(zero_dist) / num_pairs)
-    print zero_dist, "of total", num_pairs, "fraction ", stat_dict["ZERO_DIST_PAIRS"]
+    print stat_dict["ZERO_DIST_PAIRS"], "of total", num_pairs, "fraction ", out_dict["ZERO_DIST_PAIRS"]
 
-    above_10k = len([dist for dist in stat_list[1] if dist > 10000])
-    stat_dict["NUM_10KB_PAIRS"] = "{0:.3f}".format(float(above_10k) / num_pairs)
-    print "Count of read pairs with distance > 10KB (many is a sign of good prep):"
-    print above_10k, "of total", len(dists), ", fraction ", stat_dict["NUM_10KB_PAIRS"]
+    print "Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):"
+    print stat_dict["NUM_10KB_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_10KB_PAIRS"]
 
-    stat_dict["NUM_DIFF_CONTIG_PAIRS"] = "{0:.3f}".format(float(stat_list[0]) / num_pairs)
     print "Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):"
-    print stat_list[0], "of total", num_pairs, ", fraction ", stat_dict["NUM_DIFF_CONTIG_PAIRS"]
+    print stat_dict["NUM_DIFF_CONTIG_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_DIFF_CONTIG_PAIRS"]
 
-    stat_dict["NUM_SPLIT_READS"] = "{0:.3f}".format(stat_list[3] / float(num_pairs * 2))
     print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
-    print stat_list[3], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_SPLIT_READS"]
+    print stat_dict["NUM_SPLIT_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_SPLIT_READS"]
 
-    stat_dict["NUM_DUPE_READS"] = "{0:.3f}".format(stat_list[4] / float(num_pairs * 2))
+    print "Count of MAPQ zero reads (bad, ambiguously mapped):"
+    print stat_dict["MAPQ0_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["MAPQ0_READS"]
+
     print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
-    print stat_list[4], "of total", num_pairs * 2, ", fraction ", stat_dict["NUM_DUPE_READS"]
+    print stat_dict["NUM_DUPE_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_DUPE_READS"]
 
     #stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
     #print "Number of reads needed for informative scaffolding, estimated based on sample:"
@@ -298,9 +413,9 @@ def extract_stats(stat_list, bamfile, outfile_name, count_diff_refname_stub=Fals
     if count_diff_refname_stub:
         print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad " \
               "prep potentially):"
-        print stat_list[2], "of total", num_pairs, ", fraction", float(stat_list[2]) / num_pairs
+        print stat_dict["diff_stub"], "of total", num_pairs, ", fraction", float(stat_dict["diff_stub"]) / num_pairs
 
-    return stat_dict
+    return out_dict
 
 
 def write_stat_table(stat_dict, outfile_name):
@@ -308,6 +423,7 @@ def write_stat_table(stat_dict, outfile_name):
 
     Args:
         stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
+        outfile_name (str): a path to which to write the data.
 
     '''
     if not outfile_name.endswith(".tsv"):
@@ -322,6 +438,12 @@ def write_stat_table(stat_dict, outfile_name):
                      "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
                      "split_reads\t{NUM_SPLIT_READS}\n" \
                      "dupe_reads\t{NUM_DUPE_READS}\n"  \
+                     "n50\t{N50}\n" \
+                     "num_contigs\t{NUM_CONTIGS}\n" \
+                     "greater_10k_contigs\t{GREATER_10K_CONTIGS}\n" \
+                     "mapq0_reads\t{MAPQ0_READS}\n" \
+                     "total_len\t{TOTAL_LEN}\n" \
+                     "pass_fail\t{JUDGEMENT}\n"
                      #"desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
                      #"desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
 
@@ -338,26 +460,19 @@ if __name__ == "__main__":
     make_report = c_args["make_report"]
 
     count_diff_refname_stub = c_args["count_diff_refname_stub"]
-    print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality, plots" \
-          " are written to {2}*".format(num_reads, bamfile, outfile_name)
+    print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality".format(num_reads, bamfile)
 
-    diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads, n50, total_len = parse_bam_file(
-                              num_reads=num_reads, bamfile=bamfile, count_diff_refname_stub=count_diff_refname_stub)
-
-    stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads]
+    stat_dict = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
+                               count_diff_refname_stub=count_diff_refname_stub)
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
-    it = open("god", "w")
-    for dist in dists:
-        it.write(str(dist)+"\n")
-    it.close()
+    out_dict = extract_stats(stat_dict=stat_dict, bamfile=bamfile, outfile_name=outfile_name,
+                             count_diff_refname_stub=count_diff_refname_stub)
+    out_dict["JUDGEMENT"] = hic_library_judger(out_dict)
 
-    stat_dict = extract_stats(stat_list=stat_list, bamfile=bamfile, outfile_name=outfile_name,
-                              count_diff_refname_stub=count_diff_refname_stub)
+    make_histograms(dists=out_dict["dists"], bamfile=bamfile, outfile_name=outfile_name)
 
-    make_histograms(dists=dists, bamfile=bamfile, outfile_name=outfile_name)
-
-    write_stat_table(stat_dict=stat_dict, outfile_name=outfile_name)
+    write_stat_table(stat_dict=out_dict, outfile_name=outfile_name)
 
     if make_report:
-        make_pdf_report(qc_repo_path=script_path, stat_dict=stat_dict, outfile_name=outfile_name)
+        make_pdf_report(qc_repo_path=script_path, stat_dict=out_dict, outfile_name=outfile_name)
