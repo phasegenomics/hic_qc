@@ -25,7 +25,7 @@ class MyTestCase(unittest.TestCase):
         num_reads = 1000
         bamfile = "collateral/abc_test.bam"
         count_diff_refname_stub = False
-        self.stat_dict = b2mh.parse_bam_file(
+        self.stat_dict, total_reads, num_dupes = b2mh.parse_bam_file(
             num_reads=num_reads, bamfile=bamfile, count_diff_refname_stub=count_diff_refname_stub)
 
         self.example_read = pysam.AlignedSegment()
@@ -39,7 +39,6 @@ class MyTestCase(unittest.TestCase):
         self.example_read.set_tag("MD", 100)
         self.example_read.set_tag("AS", 100)
         self.example_read.set_tag("XS", 0)
-
 
     def tearDown(self):
         pass
