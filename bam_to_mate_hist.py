@@ -460,6 +460,8 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     out_dict["NUM_DUPE_READS"] = float(out_dict["NUM_DUPE_READS"]) / 2.
     out_dict["MAPQ0_READS"] = float(out_dict["MAPQ0_READS"]) / 2.
     out_dict['NUM_DUPE_READS_EXTRAP'] = float("{:.3f}".format(stat_dict["NUM_DUPE_READS_EXTRAP"]))
+    out_dict['TARGET_READ_TOTAL'] = stat_dict['TARGET_READ_TOTAL']
+    out_dict['NUM_READS'] = num_pairs
 
     print "Number of contigs (more is harder):"
     print stat_dict["NUM_CONTIGS"]
@@ -491,7 +493,7 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_dict["NUM_DUPE_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_DUPE_READS"]
 
-    print 'Duplicate fraction at {} reads: {:.3f}'.format(stat_dict['TARGET_READ_TOTAL'], stat_dict['NUM_DUPE_READS_EXTRAP'])
+    print 'Duplicate fraction at {} reads: {:.3f}'.format(stat_dict['TARGET_READ_TOTAL'], out_dict['NUM_DUPE_READS_EXTRAP'])
 
     #stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
     #print "Number of reads needed for informative scaffolding, estimated based on sample:"
@@ -529,6 +531,8 @@ def write_stat_table(stat_dict, outfile_name):
                      "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
                      "split_reads\t{NUM_SPLIT_READS}\n" \
                      "dupe_reads\t{NUM_DUPE_READS}\n"  \
+                     "dupe_reads_extrapolated\t{NUM_DUPE_READS_EXTRAP}\n" \
+                     "total_reads_extrapolated\t{TARGET_READ_TOTAL}\n" \
                      "n50\t{N50}\n" \
                      "num_contigs\t{NUM_CONTIGS}\n" \
                      "greater_10k_contigs\t{GREATER_10K_CONTIGS}\n" \
