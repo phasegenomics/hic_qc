@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# takes a bam file and makes a histogram of distances between mate alignments to the 
+# takes a bam file and makes a histogram of distances between mate alignments to the
 # reference assembly
 # takes the first 1M read pairs by default
 
@@ -21,13 +21,14 @@ import matplotlib.pyplot as plt
 # from matplotlib.backends.backend_pdf import PdfPages
 import pdfkit
 import markdown as md
+from scipy import optimize
 
 def parse_args(desc):
     '''parse command-line args
-	
-	Args: 
+
+	Args:
 		desc(str): program description, e.g. __file__
-	
+
 	Returns:
 		args (dict): dict of the form {arg_name: arg_value}
 	'''
@@ -43,6 +44,7 @@ def parse_args(desc):
     parser.add_argument("--make_report", "-r", default=False, action="store_true",
                         help="Whether to export results in a PDF report. Requires that the QC script be" \
                              "in the same directory as the QC repo's collateral directory. Default: False.")
+    parser.add_argument('--target_read_total', type=int, default=100000000, help="Total read count for duplicate read extrapolation (Default: %(default)s)")
 
     args = parser.parse_args()
 
@@ -66,6 +68,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         diff_chr (int): number of reads mapping between contigs/chromosomes
         dists (numpy array of ints): distances between mates.
     '''
+    total = []
+    non_dup = []
     with pysam.AlignmentFile(bamfile, 'rb') as bamfile_open:
         refs = bamfile_open.references
         n50, total_len, greater_10k = calc_n50_from_header(bamfile_open.header)
@@ -78,7 +82,11 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         num = 0
         dists = np.empty([num_reads, 1], dtype=int)
         last_read = ""
-        for read in bamfile_open:
+        for i, read in enumerate(bamfile_open):
+            if i % 1000 == 0:
+                total.append(i)
+                non_dup.append(i - dupe_reads)
+
             if num >= num_reads:
                 break
 
@@ -123,6 +131,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
 
             num += 1
     dists = dists[0:num]
+    total = np.array(total)
+    non_dup = np.array(non_dup)
     stat_dict = {}
     above_10k = len([dist for dist in dists if dist > 10000])
     stat_dict["NUM_10KB_PAIRS"] = above_10k
@@ -140,8 +150,83 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     stat_dict["GREATER_10K_CONTIGS"] = greater_10k
     stat_dict["NUM_CONTIGS"] = len(refs)
 
-    return stat_dict
+    return stat_dict, total, non_dup
 
+
+def saturation(x, V, K):
+    return V * x / (x + K)
+
+def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, target_y=None):
+    '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
+
+        Args:
+            outfile (str): name of output plot file.
+            x_array (np.array): Numpy array of total read counts.
+            y_array (np.array): Numpy array of non-duplicate read counts (must be same shape as x_array)
+            target_x (int): Total reads to extrapolate to.
+            target_y (int): Non-dup reads to extrapolate to. If specified with target_x, plots a point.
+
+        Returns:
+            Observed duplication rate, extrapolated duplication rate, and target total reads
+    '''
+
+    if not outfile.endswith('.dup_saturation.png'):
+        outfile += '.dup_saturation.png'
+
+    params, params_cov = optimize.curve_fit(saturation, x_array, y_array, p0=[x_array[-1], x_array[-1]/2])
+
+    V = params[0]
+    K = params[1]
+
+    if target_x is not None:
+        # print(args.target_x.dtype)
+        coord_max = target_x
+        t = np.linspace(0, target_x, 1000)
+    elif target_y is not None:
+        coord_max = target_y
+        x_temp = x_array[-1]
+        y_temp = saturation(x_temp, *params)
+        while y_temp < args.target_y:
+            x_temp += 1000000
+            y_temp = saturation(x_temp, *params)
+        t = np.linspace(0, x_temp, 1000)
+    else:
+        coord_max = x_array[-1]
+        t = np.linspace(0, x_array[-1], 1000)
+
+    fig, ax = plt.subplots(1)
+    plt.plot(x_array, y_array, 'k')
+    plt.plot(t, saturation(t, *params), 'r-')
+
+    observed_dup_rate = 1-float(y_array[-1])/x_array[-1]
+    non_dup_rate = None
+
+    if target_x is not None:
+        print 'At {} reads, estimated {:.0f} non-dup reads'.format(target_x, saturation(target_x, *params))
+        print 'True non-dup reads: {}'.format(target_y)
+        non_dup_rate = saturation(target_x, *params) / float(target_x)
+        if target_y is not None:
+            plt.plot(target_x, target_y, 'bo')
+    extrapolated_dup_rate = 1-non_dup_rate if non_dup_rate is not None else None
+
+    patch = matplotlib.patches.Rectangle((0, 0), x_array[-1], y_array[-1], fill=False, color='k')
+    ax.add_patch(patch)
+    plt.ylim(0, coord_max)
+    plt.xlim(0, coord_max)
+    if non_dup_rate is not None:
+        plt.title('{}\nproportion duplicated (sampled): {:.2f}\nproportion duplicated (extrapolated): {:.2f}'.format(
+            outfile, observed_dup_rate, 1-non_dup_rate))
+    else:
+        plt.title('{}\nproportion duplicated (sampled): {:.2f}'.format(
+            outfile, observed_dup_rate))
+    plt.xlabel('Total reads')
+    plt.ylabel('Non-duplicate reads')
+    plt.tight_layout()
+    plt.savefig(outfile)
+    plt.close()
+
+    print 'Best L = {}'.format(params)
+    return observed_dup_rate, extrapolated_dup_rate, target_x
 
 def calc_n50_from_header(header, xx=50.0):
     '''calculate the N50 of the starting assembly from the information in a pysam header object.
@@ -297,7 +382,7 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         # write out just html
         with open(outfile_name + "_qc_report.html", 'w') as html_out:
             html_out.write(html)
-        
+
         # print html
         pdfkit.from_string(html, outfile_name + "_qc_report.pdf", options=options, css=style_path)
 
@@ -324,7 +409,7 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
 
     Args:
         stat_list ([str]): the four statistics estimated from the bam file
-                           (stat_list = [diff_chr, dists, diff_stub, split_reads])
+                           (stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads, extrap_dup_rate, target_reads])
         bamfile (str): path to bam file
         outfile_name (str): path to where output files will be written
         count_diff_refname_stub (bool): whether we are counting the contig name stub differences.
@@ -336,7 +421,10 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
     stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
     stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
+    stat_dict["PATH_TO_DUP_SAT"] = os.path.abspath(outfile_name + ".dup_saturation.png")
+
     print "Histograms written to:", os.path.abspath(outfile_name + "_long.png"), os.path.abspath(outfile_name + "_short.png")
+    print "Duplicate saturation curve written to: {}".format(stat_dict["PATH_TO_DUP_SAT"])
 
     # only some things in dict get pretty floatified
     to_props = ["ZERO_DIST_PAIRS",
@@ -354,6 +442,7 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     out_dict["NUM_SPLIT_READS"] = float(out_dict["NUM_SPLIT_READS"]) / 2.
     out_dict["NUM_DUPE_READS"] = float(out_dict["NUM_DUPE_READS"]) / 2.
     out_dict["MAPQ0_READS"] = float(out_dict["MAPQ0_READS"]) / 2.
+    out_dict['NUM_DUPE_READS_EXTRAP'] = float("{:.3f}".format(stat_dict["NUM_DUPE_READS_EXTRAP"]))
 
     print "Number of contigs (more is harder):"
     print stat_dict["NUM_CONTIGS"]
@@ -384,6 +473,8 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
 
     print "Count of duplicate reads (duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
     print stat_dict["NUM_DUPE_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_DUPE_READS"]
+
+    print 'Duplicate fraction at {} reads: {:.3f}'.format(stat_dict['TARGET_READ_TOTAL'], stat_dict['NUM_DUPE_READS_EXTRAP'])
 
     #stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
     #print "Number of reads needed for informative scaffolding, estimated based on sample:"
@@ -444,8 +535,11 @@ if __name__ == "__main__":
     count_diff_refname_stub = c_args["count_diff_refname_stub"]
     print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality".format(num_reads, bamfile)
 
-    stat_dict = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
+    stat_dict, totals, non_dups = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                count_diff_refname_stub=count_diff_refname_stub)
+    observed_dup_rate, extrapolated_dup_rate, target_x = plot_dup_saturation(outfile_name, totals, non_dups, target_x=c_args['target_read_total'])
+    stat_dict['NUM_DUPE_READS_EXTRAP'] = extrapolated_dup_rate
+    stat_dict['TARGET_READ_TOTAL'] = target_x
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     out_dict = extract_stats(stat_dict=stat_dict, bamfile=bamfile, outfile_name=outfile_name,
