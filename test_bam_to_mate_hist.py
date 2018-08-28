@@ -57,6 +57,9 @@ class MyTestCase(unittest.TestCase):
     def test_refs_right(self):
         self.assertEqual(len(self.stat_dict["refs"]), 1288)
 
+    def test_greater_10k_contigs_right(self):
+        self.assertEqual(self.stat_dict["GREATER_10K_CONTIGS"], 229)
+
     def test_count_zero_dist_pairs(self):
         self.assertEqual(self.stat_dict["ZERO_DIST_PAIRS"], 38)
 
