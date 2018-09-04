@@ -34,7 +34,7 @@ def parse_args(desc):
     '''
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("-n", "--num_reads", default=1000000,
-                        help="Number of reads from bam file to use. default: 1000000")
+                        help="Number of reads from bam file to use. Use -1 to use all reads. Default: %(default)s")
     parser.add_argument("-b", "--bam_file", required=True,
                         help="BAM file to evaluate for QC")
     parser.add_argument("--count_diff_refname_stub", default=False, action="store_true",
@@ -90,6 +90,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         zero_dists = 0
         mapq0_reads = 0
         num = 0
+        large_insert_possible = 0
+        large_insert_actual = 0
         dists = {}
         last_read = ""
         for i, read in enumerate(bamfile_open):
@@ -97,7 +99,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                 total.append(i)
                 non_dup.append(i - dupe_reads)
 
-            if num >= num_reads:
+            if num >= num_reads and num_reads != -1:
                 break
 
             # count dupes and split reads for both F+R
@@ -140,6 +142,10 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                 dists[dist] += 1
                 if int(dist) == 0:
                     zero_dists += 1
+                if bamfile_open.get_reference_length(read.reference_name) > 10000:
+                    large_insert_possible += 1
+                    if dist > 10000:
+                        large_insert_actual += 1
 
             num += 1
     total = np.array(total)
@@ -160,6 +166,9 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
     stat_dict["TOTAL_LEN"] = total_len
     stat_dict["GREATER_10K_CONTIGS"] = greater_10k
     stat_dict["NUM_CONTIGS"] = len(refs)
+    stat_dict["LARGE_INSERT_ACTUAL"] = large_insert_actual
+    stat_dict["LARGE_INSERT_POSSIBLE"] = large_insert_possible
+    stat_dict["LARGE_INSERT_PROPORTION"] = float(large_insert_actual) / max(large_insert_possible, 1)
 
     return stat_dict, total, non_dup
 
@@ -265,7 +274,6 @@ def calc_n50_from_header(header, xx=50.0):
         Returns:
             contig_len (int): the NXX (probably N50) of the assembly based on the header
             total (int): the total length of the assembly
-
     '''
     frac = xx / 100.0
     lens = [contig["LN"] for contig in header["SQ"]]
@@ -342,7 +350,7 @@ def hic_library_judger(out_dict):
     return html_from_judgement(good, bad)
 
 
-def make_histograms(dists, bamfile, outfile_name):
+def make_histograms(dists, num_pairs, bamfile, outfile_name):
     '''make the read distance histograms using matplotlib and write them to disk.
     Args:
         dists (dictionary of mate distances and counts): Distances to plot in histogram.
@@ -354,9 +362,9 @@ def make_histograms(dists, bamfile, outfile_name):
     fig1 = plt.figure()
     plt.hist(dists.keys(), weights=dists.values(), bins=40)
     ax = fig1.add_subplot(111)
-    ax.set_ylim(0.5, num_reads * 2)
+    ax.set_ylim(0.5, num_dists * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("\nMate distance distribution for first " + str(num_dists) + " reads for sample\n" + bamfile)
+    plt.title("\nMate distance distribution for first " + str(num_pairs) + " reads for sample\n" + bamfile)
     plt.xlabel("Distance between read pair mates in Hi-C mapping (same contig)")
     plt.ylabel("Number of reads")
     fig1.savefig(outfile_name + "_long.png")
@@ -366,9 +374,9 @@ def make_histograms(dists, bamfile, outfile_name):
     plt.hist(dists.keys(), weights=dists.values(), bins=xrange(0, 20000, 500))
     ax = fig2.add_subplot(111)
     ax.set_xlim(0, 20000)
-    ax.set_ylim(0.5, num_reads * 2)
+    ax.set_ylim(0.5, num_pairs * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("Mate distance distribution for first " + str(num_dists) + " reads for sample\n" + bamfile)
+    plt.title("Mate distance distribution for first " + str(num_pairs) + " reads for sample\n" + bamfile)
     plt.xlabel("Distance between read pair mates in Hi-C mapping (same contig)")
     plt.ylabel("Number of reads")
     fig2.savefig(outfile_name + "_short.png")
@@ -483,6 +491,7 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     out_dict["NUM_SPLIT_READS"] = float(out_dict["NUM_SPLIT_READS"]) / 2.
     out_dict["NUM_DUPE_READS"] = float(out_dict["NUM_DUPE_READS"]) / 2.
     out_dict["MAPQ0_READS"] = float(out_dict["MAPQ0_READS"]) / 2.
+    out_dict["LARGE_INSERT_PROPORTION"] = float("{:.3f}".format(stat_dict["LARGE_INSERT_PROPORTION"]))
     out_dict['NUM_DUPE_READS_EXTRAP'] = float("{:.3f}".format(stat_dict["NUM_DUPE_READS_EXTRAP"]))
     out_dict['TARGET_READ_TOTAL'] = stat_dict['TARGET_READ_TOTAL']
     out_dict['NUM_READS'] = num_pairs
@@ -504,6 +513,9 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
 
     print "Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):"
     print stat_dict["NUM_10KB_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_10KB_PAIRS"]
+
+    print "Proportion of reads mapping to contigs > 10 Kbp with inserts > 10 Kbp:"
+    print out_dict['LARGE_INSERT_ACTUAL'], "of total", out_dict["LARGE_INSERT_POSSIBLE"], ", fraction", out_dict["LARGE_INSERT_PROPORTION"]
 
     print "Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):"
     print stat_dict["NUM_DIFF_CONTIG_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_DIFF_CONTIG_PAIRS"]
@@ -552,6 +564,7 @@ def write_stat_table(stat_dict, outfile_name):
                      "num_reads\t{NUM_PAIRS}\n" \
                      "zero_dist_pairs\t{ZERO_DIST_PAIRS}\n" \
                      "10kb_pairs\t{NUM_10KB_PAIRS}\n" \
+                     "prop_gt10kb_filt\t{LARGE_INSERT_PROPORTION}\n" \
                      "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
                      "split_reads\t{NUM_SPLIT_READS}\n" \
                      "dupe_reads\t{NUM_DUPE_READS}\n"  \
@@ -579,7 +592,10 @@ if __name__ == "__main__":
     make_report = c_args["make_report"]
 
     count_diff_refname_stub = c_args["count_diff_refname_stub"]
-    print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality".format(num_reads, bamfile)
+    if num_reads != -1:
+        print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality".format(num_reads, bamfile)
+    else:
+        print "parsing all reads in bam file {} to QC Hi-C library quality".format(bamfile)
 
     stat_dict, totals, non_dups = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                count_diff_refname_stub=count_diff_refname_stub)
@@ -592,7 +608,7 @@ if __name__ == "__main__":
                              count_diff_refname_stub=count_diff_refname_stub)
     out_dict["JUDGEMENT"] = hic_library_judger(out_dict)
 
-    make_histograms(dists=out_dict["dists"], bamfile=bamfile, outfile_name=outfile_name)
+    make_histograms(dists=out_dict["dists"], num_pairs=stat_dict["NUM_PAIRS"], bamfile=bamfile, outfile_name=outfile_name)
 
     write_stat_table(stat_dict=out_dict, outfile_name=outfile_name)
 
