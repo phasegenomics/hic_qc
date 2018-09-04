@@ -75,8 +75,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         count_from_stub (bool): whether to
     Returns:
         diff_chr (int): number of reads mapping between contigs/chromosomes.
-        Does not count pairs that map to different contigs.
         dists (dict): Dictionary with mate distances as keys and counts as values.
+        Does not count pairs that map to different contigs.
     '''
     total = []
     non_dup = []
