@@ -74,8 +74,9 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         reads in the file).
         count_from_stub (bool): whether to
     Returns:
-        diff_chr (int): number of reads mapping between contigs/chromosomes
-        dists (numpy array of ints): distances between mates.
+        diff_chr (int): number of reads mapping between contigs/chromosomes.
+        Does not count pairs that map to different contigs.
+        dists (dict): Dictionary with mate distances as keys and counts as values.
     '''
     total = []
     non_dup = []
@@ -89,7 +90,6 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         zero_dists = 0
         mapq0_reads = 0
         num = 0
-        # dists = np.empty([num_reads, 1], dtype=int)
         dists = {}
         last_read = ""
         for i, read in enumerate(bamfile_open):
@@ -124,7 +124,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
 
             if ref1 != ref2:
                 diff_chr += 1
-                # dists[num] = -1  # doesn't support NaNs in int arrays
+
                 if count_diff_refname_stub:
                     ref1_stub = refs[ref1].split(".")[0]
                     ref2_stub = refs[ref2].split(".")[0]
@@ -138,16 +138,13 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
                 if dist not in dists:
                     dists[dist] = 0
                 dists[dist] += 1
-                # dists[num] = dist
                 if int(dist) == 0:
                     zero_dists += 1
 
             num += 1
-    # dists = dists[0:num]
     total = np.array(total)
     non_dup = np.array(non_dup)
     stat_dict = {}
-    # above_10k = len([val for val in dists if val > 10000])
     above_10k = sum([val for key, val in dists.items() if key > 10000])
     stat_dict["NUM_10KB_PAIRS"] = above_10k
     stat_dict["NUM_DIFF_CONTIG_PAIRS"] = diff_chr
@@ -255,7 +252,7 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
     plt.savefig(outfile)
     plt.close()
 
-    print 'Best L = {}'.format(params)
+    print 'Best V = {}, best K = {}'.format(*params)
     return observed_dup_rate, extrapolated_dup_rate, target_x
 
 def calc_n50_from_header(header, xx=50.0):
@@ -348,12 +345,10 @@ def hic_library_judger(out_dict):
 def make_histograms(dists, bamfile, outfile_name):
     '''make the read distance histograms using matplotlib and write them to disk.
     Args:
-        dists (numpy array of ints): Distances to plot in histogram.
+        dists (dictionary of mate distances and counts): Distances to plot in histogram.
         bamfile (str): path to bamfile of dists
     '''
 
-    # dists = dists[[dist > 0 for dist in dists]]
-    # num_dists = len(dists)
     num_dists = sum(dists.values())
     # with PdfPages(outfile_name) as pdf:
     fig1 = plt.figure()
