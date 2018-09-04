@@ -354,6 +354,7 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     '''make the read distance histograms using matplotlib and write them to disk.
     Args:
         dists (dictionary of mate distances and counts): Distances to plot in histogram.
+        num_pairs (int): number of read pairs analyzed
         bamfile (str): path to bamfile of dists
     '''
 
