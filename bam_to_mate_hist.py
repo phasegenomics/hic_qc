@@ -89,7 +89,8 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
         zero_dists = 0
         mapq0_reads = 0
         num = 0
-        dists = np.empty([num_reads, 1], dtype=int)
+        # dists = np.empty([num_reads, 1], dtype=int)
+        dists = {}
         last_read = ""
         for i, read in enumerate(bamfile_open):
             if i % 1000 == 0:
@@ -123,7 +124,7 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
 
             if ref1 != ref2:
                 diff_chr += 1
-                dists[num] = -1  # doesn't support NaNs in int arrays
+                # dists[num] = -1  # doesn't support NaNs in int arrays
                 if count_diff_refname_stub:
                     ref1_stub = refs[ref1].split(".")[0]
                     ref2_stub = refs[ref2].split(".")[0]
@@ -133,17 +134,21 @@ def parse_bam_file(bamfile, num_reads, count_diff_refname_stub=False):
             else:
                 read1_pos = read.reference_start
                 read2_pos = read.next_reference_start
-                dist = str(abs(read1_pos - read2_pos))
-                dists[num] = dist
+                dist = abs(read1_pos - read2_pos)
+                if dist not in dists:
+                    dists[dist] = 0
+                dists[dist] += 1
+                # dists[num] = dist
                 if int(dist) == 0:
                     zero_dists += 1
 
             num += 1
-    dists = dists[0:num]
+    # dists = dists[0:num]
     total = np.array(total)
     non_dup = np.array(non_dup)
     stat_dict = {}
-    above_10k = len([dist for dist in dists if dist > 10000])
+    # above_10k = len([val for val in dists if val > 10000])
+    above_10k = sum([val for key, val in dists.items() if key > 10000])
     stat_dict["NUM_10KB_PAIRS"] = above_10k
     stat_dict["NUM_DIFF_CONTIG_PAIRS"] = diff_chr
     stat_dict["dists"] = dists
@@ -190,7 +195,16 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
         plt.close()
         return -1, -1, target_x
 
-    params, params_cov = optimize.curve_fit(saturation, x_array, y_array, p0=[x_array[-1], x_array[-1]/2], maxfev=6000)
+    try:
+        params, params_cov = optimize.curve_fit(saturation, x_array, y_array, p0=[x_array[-1], x_array[-1]/2], maxfev=6000)
+    except RuntimeError as e:
+        UserWarning("Convergence failed for duplicate curve fitting")
+        fig, ax = plt.subplots(1)
+        plt.title('Convergence failed for duplicate curve fitting!!!')
+        plt.savefig(outfile)
+        plt.close()
+        return -1, -1, target_x
+
     V = params[0]
     K = params[1]
 
@@ -338,11 +352,12 @@ def make_histograms(dists, bamfile, outfile_name):
         bamfile (str): path to bamfile of dists
     '''
 
-    dists = dists[[dist > 0 for dist in dists]]
-    num_dists = len(dists)
+    # dists = dists[[dist > 0 for dist in dists]]
+    # num_dists = len(dists)
+    num_dists = sum(dists.values())
     # with PdfPages(outfile_name) as pdf:
     fig1 = plt.figure()
-    plt.hist(dists, bins=40)
+    plt.hist(dists.keys(), weights=dists.values(), bins=40)
     ax = fig1.add_subplot(111)
     ax.set_ylim(0.5, num_reads * 2)
     plt.yscale("log", nonposy="clip")
@@ -353,7 +368,7 @@ def make_histograms(dists, bamfile, outfile_name):
     plt.close(fig1)
 
     fig2 = plt.figure()
-    plt.hist(dists, bins=xrange(0, 20000, 500))
+    plt.hist(dists.keys(), weights=dists.values(), bins=xrange(0, 20000, 500))
     ax = fig2.add_subplot(111)
     ax.set_xlim(0, 20000)
     ax.set_ylim(0.5, num_reads * 2)
