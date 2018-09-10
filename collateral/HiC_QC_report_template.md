@@ -14,6 +14,7 @@
 | Number of contigs greater than 10KB                             | {GREATER_10K_CONTIGS}   | N/A                                           |
 | Number of read pairs analyzed                                   | {NUM_PAIRS}             | N/A                                           |
 | Fraction of read pairs >10KB apart                              | {NUM_10KB_PAIRS}        | 0.01-0.15                                    |
+| Fraction of read pairs >10KB apart mapping to contigs >10Kbp    | {LARGE_INSERT_PROPORTION} | 0.01-0.15                                   |
 | Fraction of read pairs mapping to different contigs/chromosomes | {NUM_DIFF_CONTIG_PAIRS} | 0.1-0.6 (contigs)<br>0.01-0.2 (chromosomes)      |
 | Fraction of split reads                                         | {NUM_SPLIT_READS}       | 0.01-0.1 (PG libraries) 0.3+ (other libraries) |
 | Fraction of zero-distance pairs                                 | {ZERO_DIST_PAIRS}       | 0-0.2                                        |
@@ -42,6 +43,9 @@ We briefly describe some of the statistics we compute below to aid interpretatio
 
 ### Fraction of read pairs > 10KB apart
 More is better.
+
+### Fraction of read pairs > 10KB apart mapping to contigs >10Kbp
+More is better. Attempts to correct for assembly contiguity.
 
 ### Fraction of read pairs mapping to different contigs or chromosomes
 More is better.
