@@ -65,11 +65,20 @@ class MyTestCase(unittest.TestCase):
     def test_count_num_pairs(self):
         self.assertEqual(self.stat_dict["NUM_PAIRS"], 107)
 
+    def test_count_gt_10kbp(self):
+        self.assertEqual(self.stat_dict["NUM_10KB_PAIRS"], 1)
+
+    def test_count_gt_10kbp_actual(self):
+        self.assertEqual(self.stat_dict["LARGE_INSERT_ACTUAL"], 1)
+
+    def test_count_gt_10kbp_possible(self):
+        self.assertEqual(self.stat_dict["LARGE_INSERT_POSSIBLE"], 65)
+
     def test_dists_right_len(self):
-        self.assertEqual(len(self.stat_dict["dists"]), self.stat_dict["NUM_PAIRS"])
+        self.assertEqual(sum(self.stat_dict["dists"].values()) + self.stat_dict["NUM_DIFF_CONTIG_PAIRS"], self.stat_dict["NUM_PAIRS"])
 
     def test_dists_right_num_zeros(self):
-        num_zeros = list(self.stat_dict["dists"]).count(0)
+        num_zeros = self.stat_dict["dists"][0]
         self.assertEqual(num_zeros, self.stat_dict["ZERO_DIST_PAIRS"])
 
     def test_is_split_read_false(self):
