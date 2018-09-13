@@ -9,6 +9,9 @@
 # creates files in the working directory with relevant plots, also text files of statistics.
 # flip -r flag  (assuming you have dependencies) to make a PDF report with everything together.
 
+from __future__ import print_function
+from __future__ import division
+
 import sys
 import pysam
 import numpy as np
@@ -238,8 +241,8 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
     non_dup_rate = None
 
     if target_x is not None:
-        print 'At {} reads, estimated {:.0f} non-dup reads'.format(target_x, saturation(target_x, *params))
-        print 'True non-dup reads: {}'.format(target_y)
+        print('At {} reads, estimated {:.0f} non-dup reads'.format(target_x, saturation(target_x, *params)))
+        print('True non-dup reads: {}'.format(target_y))
         non_dup_rate = saturation(target_x, *params) / float(target_x)
         if target_y is not None:
             plt.plot(target_x, target_y, 'bo')
@@ -261,7 +264,7 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
     plt.savefig(outfile)
     plt.close()
 
-    print 'Best V = {}, best K = {}'.format(*params)
+    print('Best V = {}, best K = {}'.format(*params))
     return observed_dup_rate, extrapolated_dup_rate, target_x
 
 def calc_n50_from_header(header, xx=50.0):
@@ -361,7 +364,7 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     num_dists = sum(dists.values())
     # with PdfPages(outfile_name) as pdf:
     fig1 = plt.figure()
-    plt.hist(dists.keys(), weights=dists.values(), bins=40)
+    plt.hist(list(dists.keys()), weights=list(dists.values()), bins=40)
     ax = fig1.add_subplot(111)
     ax.set_ylim(0.5, num_dists * 2)
     plt.yscale("log", nonposy="clip")
@@ -372,7 +375,7 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     plt.close(fig1)
 
     fig2 = plt.figure()
-    plt.hist(dists.keys(), weights=dists.values(), bins=xrange(0, 20000, 500))
+    plt.hist(list(dists.keys()), weights=list(dists.values()), bins=range(0, 20000, 500))
     ax = fig2.add_subplot(111)
     ax.set_xlim(0, 20000)
     ax.set_ylim(0.5, num_pairs * 2)
@@ -473,8 +476,8 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
     stat_dict["PATH_TO_DUP_SAT"] = os.path.abspath(outfile_name + ".dup_saturation.png")
 
-    print "Histograms written to:", stat_dict["PATH_TO_LONG_HIST"], stat_dict["PATH_TO_SHORT_HIST"]
-    print "Duplicate saturation curve written to: {}".format(stat_dict["PATH_TO_DUP_SAT"])
+    print("Histograms written to:", stat_dict["PATH_TO_LONG_HIST"], stat_dict["PATH_TO_SHORT_HIST"])
+    print("Duplicate saturation curve written to: {}".format(stat_dict["PATH_TO_DUP_SAT"]))
 
     # only some things in dict get pretty floatified
     to_props = ["ZERO_DIST_PAIRS",
@@ -497,40 +500,40 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     out_dict['TARGET_READ_TOTAL'] = stat_dict['TARGET_READ_TOTAL']
     out_dict['NUM_READS'] = num_pairs
 
-    print "Number of contigs (more is harder):"
-    print stat_dict["NUM_CONTIGS"]
+    print("Number of contigs (more is harder):")
+    print(stat_dict["NUM_CONTIGS"])
 
-    print "Number of contigs greater than 10KB (longer contigs are better):"
-    print stat_dict["GREATER_10K_CONTIGS"]
+    print("Number of contigs greater than 10KB (longer contigs are better):")
+    print(stat_dict["GREATER_10K_CONTIGS"])
 
-    print "N50 of input assembly (longer contigs are better):"
-    print stat_dict["N50"]
+    print("N50 of input assembly (longer contigs are better):")
+    print(stat_dict["N50"])
 
-    print "Length of input assembly (bigger is harder):"
-    print stat_dict["TOTAL_LEN"]
+    print("Length of input assembly (bigger is harder):")
+    print(stat_dict["TOTAL_LEN"])
 
-    print "Counts of zero distances (many is a sign of bad prep):"
-    print stat_dict["ZERO_DIST_PAIRS"], "of total", num_pairs, "fraction ", out_dict["ZERO_DIST_PAIRS"]
+    print("Counts of zero distances (many is a sign of bad prep):")
+    print(stat_dict["ZERO_DIST_PAIRS"], "of total", num_pairs, "fraction ", out_dict["ZERO_DIST_PAIRS"])
 
-    print "Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):"
-    print stat_dict["NUM_10KB_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_10KB_PAIRS"]
+    print("Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):")
+    print(stat_dict["NUM_10KB_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_10KB_PAIRS"])
 
-    print "Proportion of reads mapping to contigs > 10 Kbp with inserts > 10 Kbp:"
-    print out_dict['LARGE_INSERT_ACTUAL'], "of total", out_dict["LARGE_INSERT_POSSIBLE"], ", fraction", out_dict["LARGE_INSERT_PROPORTION"]
+    print("Proportion of reads mapping to contigs > 10 Kbp with inserts > 10 Kbp:")
+    print(out_dict['LARGE_INSERT_ACTUAL'], "of total", out_dict["LARGE_INSERT_POSSIBLE"], ", fraction", out_dict["LARGE_INSERT_PROPORTION"])
 
-    print "Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):"
-    print stat_dict["NUM_DIFF_CONTIG_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_DIFF_CONTIG_PAIRS"]
+    print("Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):")
+    print(stat_dict["NUM_DIFF_CONTIG_PAIRS"], "of total", num_pairs, ", fraction ", out_dict["NUM_DIFF_CONTIG_PAIRS"])
 
-    print "Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):"
-    print stat_dict["NUM_SPLIT_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_SPLIT_READS"]
+    print("Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):")
+    print(stat_dict["NUM_SPLIT_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_SPLIT_READS"])
 
-    print "Count of MAPQ zero reads (bad, ambiguously mapped):"
-    print stat_dict["MAPQ0_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["MAPQ0_READS"]
+    print("Count of MAPQ zero reads (bad, ambiguously mapped):")
+    print(stat_dict["MAPQ0_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["MAPQ0_READS"])
 
-    print "Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):"
-    print stat_dict["NUM_DUPE_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_DUPE_READS"]
+    print("Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):")
+    print(stat_dict["NUM_DUPE_READS"], "of total", num_pairs * 2, ", fraction ", out_dict["NUM_DUPE_READS"])
 
-    print 'Duplicate fraction at {} reads: {:.3f} (-1 if insufficient to estimate)'.format(stat_dict['TARGET_READ_TOTAL'], out_dict['NUM_DUPE_READS_EXTRAP'])
+    print('Duplicate fraction at {} reads: {:.3f} (-1 if insufficient to estimate)'.format(stat_dict['TARGET_READ_TOTAL'], out_dict['NUM_DUPE_READS_EXTRAP']))
 
     #stat_dict["NUM_READS_NEEDED"] = estimate_required_num_reads(stat_list[0], num_pairs=num_pairs, refs=refs, target=600)
     #print "Number of reads needed for informative scaffolding, estimated based on sample:"
@@ -541,9 +544,9 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     #print stat_dict["DECON_READS_NEEDED"], "pairs"
 
     if count_diff_refname_stub:
-        print "Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad " \
-              "prep potentially):"
-        print stat_dict["diff_stub"], "of total", num_pairs, ", fraction", float(stat_dict["diff_stub"]) / num_pairs
+        print("Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad " \
+              "prep potentially):")
+        print(stat_dict["diff_stub"], "of total", num_pairs, ", fraction", float(stat_dict["diff_stub"]) / num_pairs)
 
     return out_dict
 
@@ -594,9 +597,9 @@ if __name__ == "__main__":
 
     count_diff_refname_stub = c_args["count_diff_refname_stub"]
     if num_reads != -1:
-        print "parsing the first {0} reads in bam file {1} to QC Hi-C library quality".format(num_reads, bamfile)
+        print("parsing the first {0} reads in bam file {1} to QC Hi-C library quality".format(num_reads, bamfile))
     else:
-        print "parsing all reads in bam file {} to QC Hi-C library quality".format(bamfile)
+        print("parsing all reads in bam file {} to QC Hi-C library quality".format(bamfile))
 
     stat_dict, totals, non_dups = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                count_diff_refname_stub=count_diff_refname_stub)
@@ -609,7 +612,7 @@ if __name__ == "__main__":
                              count_diff_refname_stub=count_diff_refname_stub)
     out_dict["JUDGEMENT"] = hic_library_judger(out_dict)
 
-    make_histograms(dists=out_dict["dists"], num_pairs=stat_dict["NUM_PAIRS"], bamfile=bamfile, outfile_name=outfile_name)
+    make_histograms(dists=stat_dict["dists"], num_pairs=stat_dict["NUM_PAIRS"], bamfile=bamfile, outfile_name=outfile_name)
 
     write_stat_table(stat_dict=out_dict, outfile_name=outfile_name)
 
