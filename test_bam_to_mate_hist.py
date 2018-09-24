@@ -16,6 +16,9 @@ use, modify, or distribute it in any fashion. You may not copy this file. You
 may not describe the contents of this file to any other party.
 '''
 
+from __future__ import print_function
+from __future__ import division
+
 import unittest
 import bam_to_mate_hist as b2mh
 import pysam
