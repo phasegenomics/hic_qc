@@ -564,24 +564,9 @@ def write_stat_table(stat_dict, outfile_name):
     else:
         outfile_tsv = outfile_name
 
-    TABLE_TEMPLATE = "BAM\t{BAM_FILE_PATH}\n" \
-                     "num_reads\t{NUM_PAIRS}\n" \
-                     "zero_dist_pairs\t{ZERO_DIST_PAIRS}\n" \
-                     "10kb_pairs\t{NUM_10KB_PAIRS}\n" \
-                     "prop_gt10kb_filt\t{LARGE_INSERT_PROPORTION}\n" \
-                     "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
-                     "split_reads\t{NUM_SPLIT_READS}\n" \
-                     "dupe_reads\t{NUM_DUPE_READS}\n"  \
-                     "dupe_reads_extrapolated\t{NUM_DUPE_READS_EXTRAP}\n" \
-                     "total_reads_extrapolated\t{TARGET_READ_TOTAL}\n" \
-                     "n50\t{N50}\n" \
-                     "num_contigs\t{NUM_CONTIGS}\n" \
-                     "greater_10k_contigs\t{GREATER_10K_CONTIGS}\n" \
-                     "mapq0_reads\t{MAPQ0_READS}\n" \
-                     "total_len\t{TOTAL_LEN}\n" \
-                     "pass_fail\t{JUDGEMENT}\n"
-                     #"desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
-                     #"desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
+    TABLE_TEMPLATE = ""
+    for k in stat_dict:
+        TABLE_TEMPLATE += "{0}\t{1}\n".format(k, stat_dict[k])
 
     table = TABLE_TEMPLATE.format(**stat_dict)
     with open(outfile_tsv, "w") as outfile:
