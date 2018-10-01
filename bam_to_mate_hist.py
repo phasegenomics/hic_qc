@@ -564,14 +564,9 @@ def write_stat_table(stat_dict, outfile_name):
     else:
         outfile_tsv = outfile_name
 
-    TABLE_TEMPLATE = ""
-    for k in stat_dict:
-        TABLE_TEMPLATE += "{0}\t{1}\n".format(k, stat_dict[k])
-
-    table = TABLE_TEMPLATE.format(**stat_dict)
     with open(outfile_tsv, "w") as outfile:
-        outfile.write(table)
-
+        for k, v in stat_dict.items():
+            print(k, v, sep="\t", file=outfile)
 
 if __name__ == "__main__":
     c_args = parse_args(__file__)
