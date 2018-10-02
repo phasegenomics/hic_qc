@@ -566,6 +566,9 @@ def write_stat_table(stat_dict, outfile_name):
 
     with open(outfile_tsv, "w") as outfile:
         for k, v in stat_dict.items():
+            if k == "refs" or k == "dists":
+                #skip long metadata fields we don't really need
+                continue
             print(k, v, sep="\t", file=outfile)
 
 if __name__ == "__main__":
