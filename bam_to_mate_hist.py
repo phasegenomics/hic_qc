@@ -265,7 +265,7 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
     plt.close()
 
     print('Best V = {}, best K = {}'.format(*params))
-    return observed_dup_rate, extrapolated_dup_rate, target_x
+    return observed_dup_rate, extrapolated_dup_rate, target_x, V, K
 
 def calc_n50_from_header(header, xx=50.0):
     '''calculate the N50 of the starting assembly from the information in a pysam header object.
@@ -586,9 +586,11 @@ if __name__ == "__main__":
 
     stat_dict, totals, non_dups = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                count_diff_refname_stub=count_diff_refname_stub)
-    observed_dup_rate, extrapolated_dup_rate, target_x = plot_dup_saturation(outfile_name, totals, non_dups, target_x=c_args['target_read_total'])
+    observed_dup_rate, extrapolated_dup_rate, target_x, V, K = plot_dup_saturation(outfile_name, totals, non_dups, target_x=c_args['target_read_total'])
     stat_dict['NUM_DUPE_READS_EXTRAP'] = extrapolated_dup_rate
     stat_dict['TARGET_READ_TOTAL'] = target_x
+    stat_dict['DUPE_SAT_V'] = V
+    stat_dict['DUPE_SAT_K'] = K
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     out_dict = extract_stats(stat_dict=stat_dict, bamfile=bamfile, outfile_name=outfile_name,
