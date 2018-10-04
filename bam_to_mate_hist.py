@@ -571,6 +571,21 @@ def write_stat_table(stat_dict, outfile_name):
                 continue
             print(k, v, sep="\t", file=outfile)
 
+def write_dists_file(stat_dict, outfile_name):
+    '''Writes the dists as a plain text file.
+
+    Args:
+        stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
+        outfile_name (str): a path to which to write the data.
+
+    '''
+    if not outfile_name.endswith(".dists"):
+        outfile_name = outfile_name + ".dists"
+        
+    with open(outfile_name, "w") as outfile:
+        for k, v in stat_dict["dists"].items():
+            print(k, v, sep="\t", file=outfile)
+
 if __name__ == "__main__":
     c_args = parse_args(__file__)
     num_reads = int(c_args["num_reads"])
@@ -600,6 +615,7 @@ if __name__ == "__main__":
     make_histograms(dists=stat_dict["dists"], num_pairs=stat_dict["NUM_PAIRS"], bamfile=bamfile, outfile_name=outfile_name)
 
     write_stat_table(stat_dict=out_dict, outfile_name=outfile_name)
+    write_dists_file(stat_dict=out_dict, outfile_name=outfile_name)
 
     if make_report:
         make_pdf_report(qc_repo_path=script_path, stat_dict=out_dict, outfile_name=outfile_name)
