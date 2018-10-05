@@ -265,7 +265,7 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
     plt.close()
 
     print('Best V = {}, best K = {}'.format(*params))
-    return observed_dup_rate, extrapolated_dup_rate, target_x
+    return observed_dup_rate, extrapolated_dup_rate, target_x, V, K
 
 def calc_n50_from_header(header, xx=50.0):
     '''calculate the N50 of the starting assembly from the information in a pysam header object.
@@ -564,29 +564,27 @@ def write_stat_table(stat_dict, outfile_name):
     else:
         outfile_tsv = outfile_name
 
-    TABLE_TEMPLATE = "BAM\t{BAM_FILE_PATH}\n" \
-                     "num_reads\t{NUM_PAIRS}\n" \
-                     "zero_dist_pairs\t{ZERO_DIST_PAIRS}\n" \
-                     "10kb_pairs\t{NUM_10KB_PAIRS}\n" \
-                     "prop_gt10kb_filt\t{LARGE_INSERT_PROPORTION}\n" \
-                     "diff_contig_pairs\t{NUM_DIFF_CONTIG_PAIRS}\n" \
-                     "split_reads\t{NUM_SPLIT_READS}\n" \
-                     "dupe_reads\t{NUM_DUPE_READS}\n"  \
-                     "dupe_reads_extrapolated\t{NUM_DUPE_READS_EXTRAP}\n" \
-                     "total_reads_extrapolated\t{TARGET_READ_TOTAL}\n" \
-                     "n50\t{N50}\n" \
-                     "num_contigs\t{NUM_CONTIGS}\n" \
-                     "greater_10k_contigs\t{GREATER_10K_CONTIGS}\n" \
-                     "mapq0_reads\t{MAPQ0_READS}\n" \
-                     "total_len\t{TOTAL_LEN}\n" \
-                     "pass_fail\t{JUDGEMENT}\n"
-                     #"desired_scaffolding_reads\t{NUM_READS_NEEDED}\n" \
-                     #"desired_deconvolution_reads\t{DECON_READS_NEEDED}\n"
-
-    table = TABLE_TEMPLATE.format(**stat_dict)
     with open(outfile_tsv, "w") as outfile:
-        outfile.write(table)
+        for k, v in stat_dict.items():
+            if k == "refs" or k == "dists":
+                #skip long metadata fields we don't really need
+                continue
+            print(k, v, sep="\t", file=outfile)
 
+def write_dists_file(stat_dict, outfile_name):
+    '''Writes the dists as a plain text file.
+
+    Args:
+        stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
+        outfile_name (str): a path to which to write the data.
+
+    '''
+    if not outfile_name.endswith(".dists"):
+        outfile_name = outfile_name + ".dists"
+        
+    with open(outfile_name, "w") as outfile:
+        for k, v in stat_dict["dists"].items():
+            print(k, v, sep="\t", file=outfile)
 
 if __name__ == "__main__":
     c_args = parse_args(__file__)
@@ -603,9 +601,11 @@ if __name__ == "__main__":
 
     stat_dict, totals, non_dups = parse_bam_file(num_reads=num_reads, bamfile=bamfile,
                                count_diff_refname_stub=count_diff_refname_stub)
-    observed_dup_rate, extrapolated_dup_rate, target_x = plot_dup_saturation(outfile_name, totals, non_dups, target_x=c_args['target_read_total'])
+    observed_dup_rate, extrapolated_dup_rate, target_x, V, K = plot_dup_saturation(outfile_name, totals, non_dups, target_x=c_args['target_read_total'])
     stat_dict['NUM_DUPE_READS_EXTRAP'] = extrapolated_dup_rate
     stat_dict['TARGET_READ_TOTAL'] = target_x
+    stat_dict['DUPE_SAT_V'] = V
+    stat_dict['DUPE_SAT_K'] = K
     script_path = os.path.split(os.path.abspath(sys.argv[0]))[0]
 
     out_dict = extract_stats(stat_dict=stat_dict, bamfile=bamfile, outfile_name=outfile_name,
@@ -615,6 +615,7 @@ if __name__ == "__main__":
     make_histograms(dists=stat_dict["dists"], num_pairs=stat_dict["NUM_PAIRS"], bamfile=bamfile, outfile_name=outfile_name)
 
     write_stat_table(stat_dict=out_dict, outfile_name=outfile_name)
+    write_dists_file(stat_dict=out_dict, outfile_name=outfile_name)
 
     if make_report:
         make_pdf_report(qc_repo_path=script_path, stat_dict=out_dict, outfile_name=outfile_name)
