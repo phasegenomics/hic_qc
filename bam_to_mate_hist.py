@@ -202,7 +202,7 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
         plt.title('Insufficient reads to estimate duplication rate!!!')
         plt.savefig(outfile)
         plt.close()
-        return -1, -1, target_x
+        return -1, -1, target_x, -1, -1
 
     try:
         params, params_cov = optimize.curve_fit(saturation, x_array, y_array, p0=[x_array[-1], x_array[-1]/2], maxfev=6000)
@@ -212,7 +212,7 @@ def plot_dup_saturation(outfile, x_array, y_array, target_x=100000000, min_sampl
         plt.title('Convergence failed for duplicate curve fitting!!!')
         plt.savefig(outfile)
         plt.close()
-        return -1, -1, target_x
+        return -1, -1, target_x, -1, -1
 
     V = params[0]
     K = params[1]
