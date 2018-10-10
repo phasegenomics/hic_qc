@@ -31,7 +31,7 @@ Some dependencies such as matplotlib don't play nicely with all pythons, such th
 
 ### Conda installation
 We have also successfully installed requirements using the following conda command:
-`conda install -y -c bioconda -c conda-forge pdfkit markdown numpy pysam matplotlib`
+`conda install -y -c bioconda -c conda-forge pdfkit markdown numpy pysam matplotlib scipy`
 
 This will automatically install the `wkhtmltopdf` dependency.
 
