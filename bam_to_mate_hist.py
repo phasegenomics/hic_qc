@@ -387,10 +387,13 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     plt.close(fig2)
 
     fig3 = plt.figure()
-    min_dist = min(dists.keys()) + 1
-    max_dist = max(dists.keys())
-    plt.hist(list(dists.keys()),
-             weights=list(dists.values()),
+    offset_dists = {}
+    for key, value in dists.items():
+        offset_dists[key+1] = value
+    min_dist = min(offset_dists.keys())
+    max_dist = max(offset_dists.keys())
+    plt.hist(list(offset_dists.keys()),
+             weights=list(offset_dists.values()),
              bins=np.logspace(np.log10(min_dist),
              np.log10(max_dist), 50),
              log=True)
