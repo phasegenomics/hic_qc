@@ -368,7 +368,7 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     ax = fig1.add_subplot(111)
     ax.set_ylim(0.5, num_dists * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("\nMate distance distribution for first " + str(num_pairs) + " reads for sample\n" + bamfile)
+    plt.title("\nMate distance distribution for first " + str(num_pairs) + " reads for sample\n" + os.path.basename(bamfile))
     plt.xlabel("Distance between read pair mates in Hi-C mapping (same contig)")
     plt.ylabel("Number of reads")
     fig1.savefig(outfile_name + "_long.png")
@@ -380,11 +380,36 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     ax.set_xlim(0, 20000)
     ax.set_ylim(0.5, num_pairs * 2)
     plt.yscale("log", nonposy="clip")
-    plt.title("Mate distance distribution for first " + str(num_pairs) + " reads for sample\n" + bamfile)
+    plt.title("Mate distance distribution for first " + str(num_pairs) + " reads for sample\n" + os.path.basename(bamfile))
     plt.xlabel("Distance between read pair mates in Hi-C mapping (same contig)")
     plt.ylabel("Number of reads")
     fig2.savefig(outfile_name + "_short.png")
     plt.close(fig2)
+
+    fig3 = plt.figure()
+    offset_dists = {}
+    for key, value in dists.items():
+        offset_dists[key+1] = value
+    min_dist = min(offset_dists.keys())
+    max_dist = max(offset_dists.keys())
+    plt.hist(list(offset_dists.keys()),
+             weights=list(offset_dists.values()),
+             bins=np.logspace(np.log10(min_dist),
+                              np.log10(max_dist),
+                              50),
+             log=True)
+    ax = fig3.add_subplot(111)
+    ax.set_ylim(0.5, num_pairs * 2)
+    plt.yscale("log", nonposy="clip")
+    plt.xscale("log")
+    plt.xlim(xmin=1)
+    plt.title("Mate distance distribution for first " + str(num_pairs) + " reads for sample\n" + os.path.basename(bamfile))
+    plt.xlabel("Distance between read pair mates in Hi-C mapping (same contig, log scale)")
+
+    plt.ylabel("Number of reads (log scale)")
+    plt.tight_layout()
+    fig3.savefig(outfile_name + "_log_log.png")
+    plt.close(fig3)
 
 
 def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
@@ -474,9 +499,10 @@ def extract_stats(stat_dict, bamfile, outfile_name, count_diff_refname_stub=Fals
     stat_dict["BAM_FILE_PATH"] = os.path.split(bamfile)[-1]
     stat_dict["PATH_TO_LONG_HIST"] = os.path.abspath(outfile_name + "_long.png")
     stat_dict["PATH_TO_SHORT_HIST"] = os.path.abspath(outfile_name + "_short.png")
+    stat_dict["PATH_TO_LOG_LOG_HIST"] = os.path.abspath(outfile_name + "_log_log.png")
     stat_dict["PATH_TO_DUP_SAT"] = os.path.abspath(outfile_name + ".dup_saturation.png")
 
-    print("Histograms written to:", stat_dict["PATH_TO_LONG_HIST"], stat_dict["PATH_TO_SHORT_HIST"])
+    print("Histograms written to:", stat_dict["PATH_TO_LONG_HIST"], stat_dict["PATH_TO_SHORT_HIST"], stat_dict["PATH_TO_LOG_LOG_HIST"])
     print("Duplicate saturation curve written to: {}".format(stat_dict["PATH_TO_DUP_SAT"]))
 
     # only some things in dict get pretty floatified
@@ -581,7 +607,7 @@ def write_dists_file(stat_dict, outfile_name):
     '''
     if not outfile_name.endswith(".dists"):
         outfile_name = outfile_name + ".dists"
-        
+
     with open(outfile_name, "w") as outfile:
         for k, v in stat_dict["dists"].items():
             print(k, v, sep="\t", file=outfile)
