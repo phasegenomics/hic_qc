@@ -33,6 +33,7 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 
 !["Long range interaction histogram"]({PATH_TO_LONG_HIST})
 !["Short range interaction histogram"]({PATH_TO_SHORT_HIST})
+!["Log-log interaction histogram"]({PATH_TO_LOG_LOG_HIST})
 
 ## Duplicate read saturation curve
 
