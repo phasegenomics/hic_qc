@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/phasegenomics/bam_to_mate_hist.svg?branch=feature_requests)](https://travis-ci.com/phasegenomics/bam_to_mate_hist)
+[![Build Status](https://travis-ci.com/phasegenomics/bam_to_mate_hist.svg?branch=master)](https://travis-ci.com/phasegenomics/bam_to_mate_hist)
 
 # `bam_to_mate_hist.py` readme.
 
