@@ -395,7 +395,8 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     plt.hist(list(offset_dists.keys()),
              weights=list(offset_dists.values()),
              bins=np.logspace(np.log10(min_dist),
-             np.log10(max_dist), 50),
+                              np.log10(max_dist),
+                              50),
              log=True)
     ax = fig3.add_subplot(111)
     ax.set_ylim(0.5, num_pairs * 2)
