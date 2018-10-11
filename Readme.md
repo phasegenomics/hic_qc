@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/phasegenomics/bam_to_mate_hist.svg?branch=master)](https://travis-ci.com/phasegenomics/bam_to_mate_hist)
+
 # `bam_to_mate_hist.py` readme.
 
 This script is intended as a simple QC method for Hi-C libraries, based on reads in a BAM file aligned to some genome/assembly. 
@@ -31,7 +33,7 @@ Some dependencies such as matplotlib don't play nicely with all pythons, such th
 
 ### Conda installation
 We have also successfully installed requirements using the following conda command:
-`conda install -y -c bioconda -c conda-forge pdfkit markdown numpy pysam matplotlib`
+`conda install -y -c bioconda -c conda-forge pdfkit markdown numpy pysam matplotlib scipy`
 
 This will automatically install the `wkhtmltopdf` dependency.
 
