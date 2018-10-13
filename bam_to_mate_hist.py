@@ -467,7 +467,7 @@ def make_pretty_stat_dict(stat_dict):
                 if float(v) == -0.0:
                     ret[k] = '0.0%'
                 else:
-                    ret[k] = '{0}%'.format(round(10000.0*float(v)) / 100.0)
+                    ret[k] = '{0}%'.format(round(100.0*float(v), 2))
         else:
             ret[k] = v
     return ret
