@@ -411,6 +411,66 @@ def make_histograms(dists, num_pairs, bamfile, outfile_name):
     fig3.savefig(outfile_name + "_log_log.png")
     plt.close(fig3)
 
+def represents_number(x):
+    '''Checks whether x looks like a number.
+    
+    Args:
+        x (obj): an object to check
+    
+    Returns:
+        bool: True if x looks like a number, else False
+    '''
+    try:
+        float(x)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+def represents_int(x):
+    '''Checks whether x looks like an int (floats ending in .0 do not
+    count for purposes of this check).
+    
+    Args:
+        x (obj): an object to check
+    
+    Returns:
+        bool: True if x looks like an int, else False
+    '''
+    ret = isinstance(x, int)
+    if isinstance(x, str):
+        if len(x) > 0 and x[0] in ('-', '+'):
+            ret = x[1:].isdigit()
+        else:
+            ret = x.isdigit()
+    return ret
+
+def make_pretty_stat_dict(stat_dict):
+    '''Change any numbers in a stat dict to either be pretty percentile
+    strings or integer strings with commas. Auto-detects whether a value
+    is a float or an int, and assumes all floats are percentages. All
+    other values are unchanged. Does not mutate stat_dict.
+    
+    Args:
+        stat_dict (dict[str:object]): the dictionary to make pretty
+    
+    Returns:
+        dict[str:obj]: a new dictionary with all the keys of stat_dict,
+            and with the values made into strings that are percentages,
+            comma-delimited ints, or unchanged as appropriate.
+    '''
+    ret = dict()
+    for k, v in stat_dict.items():
+        if represents_number(v):
+            if represents_int(v):
+                ret[k] = "{:,}".format(int(v))
+            else:
+                if float(v) == -0.0:
+                    ret[k] = '0.0%'
+                else:
+                    ret[k] = '{0}%'.format(round(10000.0*float(v)) / 100.0)
+        else:
+            ret[k] = v
+    return ret
 
 def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
     '''Make the pdf report using the template, the
@@ -451,10 +511,11 @@ def make_pdf_report(qc_repo_path, stat_dict, outfile_name):
         commit_id = "unversioned"
 
 
-    with open(template_path) as file:
-        str = file.read()
+    with open(template_path) as f:
+        str = f.read()
         sub_str = str.replace("COMMIT_VERSION", commit_id)  # versions report
-        sub_str = sub_str.format(**stat_dict)  # splat the statistics and path into the markdown, render as html
+        pretty_stats = make_pretty_stat_dict(stat_dict)
+        sub_str = sub_str.format(**pretty_stats)  # splat the statistics and path into the markdown, render as html
         html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
 
         # write out just html

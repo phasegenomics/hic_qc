@@ -90,7 +90,168 @@ class MyTestCase(unittest.TestCase):
     def test_is_split_read_true(self):
         self.example_read.set_tag("SA", 1)
         self.assertTrue(b2mh.is_split_read(self.example_read))
-
+    
+    def test_represents_number(self):
+        self.assertTrue(b2mh.represents_number(5))
+        self.assertTrue(b2mh.represents_number(0))
+        self.assertTrue(b2mh.represents_number(-5))
+        self.assertTrue(b2mh.represents_number('5'))
+        self.assertTrue(b2mh.represents_number('0'))
+        self.assertTrue(b2mh.represents_number('-5'))
+        self.assertTrue(b2mh.represents_number('+5'))
+        
+        self.assertTrue(b2mh.represents_number(5.0))
+        self.assertTrue(b2mh.represents_number(0.0))
+        self.assertTrue(b2mh.represents_number(-5.0))
+        self.assertTrue(b2mh.represents_number('5.0'))
+        self.assertTrue(b2mh.represents_number('0.0'))
+        self.assertTrue(b2mh.represents_number('-5.0'))
+        self.assertTrue(b2mh.represents_number('+5.0'))
+        
+        self.assertTrue(b2mh.represents_number(5.2))
+        self.assertTrue(b2mh.represents_number(0.2))
+        self.assertTrue(b2mh.represents_number(-5.2))
+        self.assertTrue(b2mh.represents_number('5.2'))
+        self.assertTrue(b2mh.represents_number('0.2'))
+        self.assertTrue(b2mh.represents_number('-5.2'))
+        self.assertTrue(b2mh.represents_number('+5.2'))
+        
+        self.assertFalse(b2mh.represents_number('a'))
+        self.assertFalse(b2mh.represents_number('1a'))
+        self.assertFalse(b2mh.represents_number('a1'))
+        self.assertFalse(b2mh.represents_number('1 + 1'))
+        self.assertFalse(b2mh.represents_number('1+1'))
+        self.assertFalse(b2mh.represents_number(''))
+        self.assertFalse(b2mh.represents_number(' '))
+        self.assertFalse(b2mh.represents_number('\t'))
+        self.assertFalse(b2mh.represents_number('hello world'))
+        self.assertFalse(b2mh.represents_number('.'))
+        self.assertFalse(b2mh.represents_number('+'))
+        self.assertFalse(b2mh.represents_number('-'))
+        
+        self.assertTrue(b2mh.represents_number('inf'))
+        self.assertFalse(b2mh.represents_number(None))
+        self.assertFalse(b2mh.represents_number(dict()))
+        self.assertFalse(b2mh.represents_number(list()))
+        self.assertFalse(b2mh.represents_number([5]))
+        self.assertFalse(b2mh.represents_number([5, 6]))
+        self.assertFalse(b2mh.represents_number(['5']))
+        self.assertFalse(b2mh.represents_number({'a':5}))
+        self.assertFalse(b2mh.represents_number({5:5}))
+        self.assertFalse(b2mh.represents_number({5:'a'}))
+    
+    def test_represents_int(self):
+        self.assertTrue(b2mh.represents_int(5))
+        self.assertTrue(b2mh.represents_int(0))
+        self.assertTrue(b2mh.represents_int(-5))
+        self.assertTrue(b2mh.represents_int('5'))
+        self.assertTrue(b2mh.represents_int('0'))
+        self.assertTrue(b2mh.represents_int('-5'))
+        self.assertTrue(b2mh.represents_int('+5'))
+        
+        self.assertFalse(b2mh.represents_int(5.0))
+        self.assertFalse(b2mh.represents_int(0.0))
+        self.assertFalse(b2mh.represents_int(-5.0))
+        self.assertFalse(b2mh.represents_int('5.0'))
+        self.assertFalse(b2mh.represents_int('0.0'))
+        self.assertFalse(b2mh.represents_int('-5.0'))
+        self.assertFalse(b2mh.represents_int('+5.0'))
+        
+        self.assertFalse(b2mh.represents_int(5.2))
+        self.assertFalse(b2mh.represents_int(0.2))
+        self.assertFalse(b2mh.represents_int(-5.2))
+        self.assertFalse(b2mh.represents_int('5.2'))
+        self.assertFalse(b2mh.represents_int('0.2'))
+        self.assertFalse(b2mh.represents_int('-5.2'))
+        self.assertFalse(b2mh.represents_int('+5.2'))
+        
+        self.assertFalse(b2mh.represents_int('a'))
+        self.assertFalse(b2mh.represents_int('1a'))
+        self.assertFalse(b2mh.represents_int('a1'))
+        self.assertFalse(b2mh.represents_int('1 + 1'))
+        self.assertFalse(b2mh.represents_int('1+1'))
+        self.assertFalse(b2mh.represents_int(''))
+        self.assertFalse(b2mh.represents_int(' '))
+        self.assertFalse(b2mh.represents_int('\t'))
+        self.assertFalse(b2mh.represents_int('hello world'))
+        self.assertFalse(b2mh.represents_int('.'))
+        self.assertFalse(b2mh.represents_int('+'))
+        self.assertFalse(b2mh.represents_int('-'))
+        
+        self.assertFalse(b2mh.represents_int('inf'))
+        self.assertFalse(b2mh.represents_int(None))
+        self.assertFalse(b2mh.represents_int(dict()))
+        self.assertFalse(b2mh.represents_int(list()))
+        self.assertFalse(b2mh.represents_int([5]))
+        self.assertFalse(b2mh.represents_int([5, 6]))
+        self.assertFalse(b2mh.represents_int(['5']))
+        self.assertFalse(b2mh.represents_int({'a':5}))
+        self.assertFalse(b2mh.represents_int({5:5}))
+        self.assertFalse(b2mh.represents_int({5:'a'}))
+    
+    def test_make_pretty_stat_dict(self):
+        test_dict = {
+                'a' : '1234567',
+                'b' : '0.123456',
+                'c' : '1',
+                'd' : '0',
+                'e' : '1.0',
+                'f' : '0.0',
+                'g' : 1234567,
+                'h' : 0.123456,
+                'i' : 1,
+                'j' : 0,
+                'k' : 1.0,
+                'l' : 0.0,
+                'm' : 'abcd',
+                'n' : None,
+                'o' : '',
+                'p' : dict(),
+                'q' : list(),
+                'r' : '+12345',
+                's' : '+1.23456',
+                't' : -1,
+                'u' : -1.0,
+                'v' : '-1.0',
+                'w' : '-0.12345',
+                'x' : '-0.0',
+                'y' : '-0',
+                'z' : -0
+            }
+        answer_dict = {
+                'a' : '1,234,567',
+                'b' : '12.35%',
+                'c' : '1',
+                'd' : '0',
+                'e' : '100.0%',
+                'f' : '0.0%',
+                'g' : '1,234,567',
+                'h' : '12.35%',
+                'i' : '1',
+                'j' : '0',
+                'k' : '100.0%',
+                'l' : '0.0%',
+                'm' : 'abcd',
+                'n' : None,
+                'o' : '',
+                'p' : dict(),
+                'q' : list(),
+                'r' : '12,345',
+                's' : '123.46%',
+                't' : '-1',
+                'u' : '-100.0%',
+                'v' : '-100.0%',
+                'w' : '-12.35%',
+                'x' : '0.0%',
+                'y' : '0',
+                'z' : '0'
+            }
+        pretty_dict = b2mh.make_pretty_stat_dict(test_dict)
+        self.assertEqual(sorted(test_dict.keys()), sorted(pretty_dict.keys()))
+        self.assertEqual(sorted(pretty_dict.keys()), sorted(answer_dict.keys()))
+        for k in pretty_dict:
+            self.assertEqual(pretty_dict[k], answer_dict[k],
+                             'Key: {0}, Got {1}, Answer {2}'.format(k, pretty_dict[k], answer_dict[k]))
 
 if __name__ == '__main__':
     unittest.main()
