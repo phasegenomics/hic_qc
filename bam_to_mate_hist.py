@@ -306,15 +306,14 @@ def html_from_judgement(good, bad):
             ValueError: if impossible logical situations occur given two bools.
 
     '''
-
     if good and not bad:
-        return '<span style="background-color:green">PASS</span>'
+        return '<span class="pass">PASS</span>'
     elif not good and bad:
-        return '<span style="background-color:red">FAIL</span>'
+        return '<span class="fail">FAIL</span>'
     elif good and bad:
-        return '<span style="background-color:yellow">MIXED RESULTS</span>'
+        return '<span class="mixed-results">MIXED RESULTS</span>'
     elif not good and not bad:
-        return '<span style="background-color:yellow">LOW SIGNAL</span>'
+        return '<span class="low-signal">LOW SIGNAL</span>'
     else:
         raise ValueError("logical impossibility!")
 

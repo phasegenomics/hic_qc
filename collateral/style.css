@@ -4,38 +4,66 @@ html {
   -webkit-text-size-adjust:100%;
   -ms-text-size-adjust:100%
 }
- 
+
 body {
   margin:0;
 }
- 
+
 h1,
 .h1 {
   font-size: 24px;
 }
- 
+
 h2,
 .h2 {
-  font-size: 18px;
+  font-size: 20px;
 }
- 
-h3,
-.h3 {
+
+h3, h4, h5, h6, p {
+  text-align: left;
+  margin-left: 30px;
+  margin-right: 30px;
+}
+
+h3 {
+  font-size: 16px;
+}
+
+h4 {
   font-size: 14px;
 }
  
-h4,
-.h4 {
+h5 {
   font-size: 12px;
 }
  
-h5,
-.h5 {
+h6 {
   font-size: 11px;
 }
- 
-h6,
-.h6 {
-  font-size: 9px;
+
+p {
+  font-size: 14px;
+}
+
+.centered {
+  text-align: center;
+}
+
+.pass, .fail, .low-signal, .mixed-results {
+  padding: 3px 6px;
+  font-weight: bold;
+  color: white;
+}
+
+.pass {
+  background-color: green;
+}
+
+.fail {
+  background-color: red;
+}
+
+.low-signal, .mixed-results {
+  background-color: orange;
 }
 
