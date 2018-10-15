@@ -28,8 +28,13 @@ class MyTestCase(unittest.TestCase):
         num_reads = 1000
         bamfile = "collateral/abc_test.bam"
         count_diff_refname_stub = False
-        self.stat_dict, total_reads, num_dupes = b2mh.parse_bam_file(
-            num_reads=num_reads, bamfile=bamfile, count_diff_refname_stub=count_diff_refname_stub)
+
+        QC = b2mh.HiCQC()
+        QC.parse_bam(bamfile, max_read_pairs=num_reads)
+        self.QC = QC
+        self.stats = QC.stats
+        # self.stat_dict, total_reads, num_dupes = b2mh.parse_bam_file(
+        #     num_reads=num_reads, bamfile=bamfile, count_diff_refname_stub=count_diff_refname_stub)
 
         self.example_read = pysam.AlignedSegment()
         self.example_read.reference_start = 30
@@ -48,48 +53,54 @@ class MyTestCase(unittest.TestCase):
 
     # all manually measured in the BAM file...
     def test_count_diff_chr_pairs(self):
-        self.assertEqual(self.stat_dict["NUM_DIFF_CONTIG_PAIRS"], 5)
+        self.assertEqual(self.stats['intercontig_pairs'], 5)
 
     def test_count_splits(self):
-        self.assertEqual(self.stat_dict["NUM_SPLIT_READS"], 6)
+        self.assertEqual(self.stats['split_reads'], 6)
 
     def test_count_dupe_reads(self):
-        self.assertEqual(self.stat_dict["NUM_DUPE_READS"], 2)
+        self.assertEqual(self.stats['duplicate_reads'], 2)
 
     def test_refs_right(self):
-        self.assertEqual(len(self.stat_dict["refs"]), 1288)
+        self.assertEqual(len(self.QC.refs), 1288)
 
     def test_greater_10k_contigs_right(self):
-        self.assertEqual(self.stat_dict["GREATER_10K_CONTIGS"], 229)
+        self.assertEqual(len(self.QC.contigs_greater_10k), 229)
 
     def test_count_zero_dist_pairs(self):
-        self.assertEqual(self.stat_dict["ZERO_DIST_PAIRS"], 38)
+        self.assertEqual(self.stats['zero_dist_pairs'], 38)
 
     def test_count_num_pairs(self):
-        self.assertEqual(self.stat_dict["NUM_PAIRS"], 107)
+        self.assertEqual(self.stats['total_read_pairs'], 107)
 
     def test_count_gt_10kbp(self):
-        self.assertEqual(self.stat_dict["NUM_10KB_PAIRS"], 1)
+        self.assertEqual(self.stats['pairs_greater_10k'], 1)
 
     def test_count_gt_10kbp_actual(self):
-        self.assertEqual(self.stat_dict["LARGE_INSERT_ACTUAL"], 1)
+        self.assertEqual(self.stats['pairs_greater_10k_on_contigs_greater_10k'], 1)
 
     def test_count_gt_10kbp_possible(self):
-        self.assertEqual(self.stat_dict["LARGE_INSERT_POSSIBLE"], 65)
+        self.assertEqual(self.stats['pairs_on_contigs_greater_10k'], 65)
 
     def test_dists_right_len(self):
-        self.assertEqual(sum(self.stat_dict["dists"].values()) + self.stat_dict["NUM_DIFF_CONTIG_PAIRS"], self.stat_dict["NUM_PAIRS"])
+        self.assertEqual(sum(self.QC.dists.values()) + self.stats['intercontig_pairs'], self.stats['total_read_pairs'])
 
     def test_dists_right_num_zeros(self):
-        num_zeros = self.stat_dict["dists"][0]
-        self.assertEqual(num_zeros, self.stat_dict["ZERO_DIST_PAIRS"])
+        num_zeros = self.QC.dists[0]
+        self.assertEqual(num_zeros, self.stats['zero_dist_pairs'])
 
     def test_is_split_read_false(self):
-        self.assertFalse(b2mh.is_split_read(self.example_read))
+        QCtmp = b2mh.HiCQC()
+        QCtmp.update_read_stats(self.example_read)
+
+        self.assertEqual(QCtmp.stats['split_reads'], 0)
 
     def test_is_split_read_true(self):
+        QCtmp = b2mh.HiCQC()
         self.example_read.set_tag("SA", 1)
-        self.assertTrue(b2mh.is_split_read(self.example_read))
+
+        QCtmp.update_read_stats(self.example_read)
+        self.assertEqual(QCtmp.stats['split_reads'], 1)
 
 
 if __name__ == '__main__':
