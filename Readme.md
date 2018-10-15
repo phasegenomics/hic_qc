@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/phasegenomics/bam_to_mate_hist.svg?branch=master)](https://travis-ci.com/phasegenomics/bam_to_mate_hist)
+
 # `bam_to_mate_hist.py` readme.
 
 This script is intended as a simple QC method for Hi-C libraries, based on reads in a BAM file aligned to some genome/assembly. 
