@@ -73,7 +73,7 @@ class HiCQC(object):
     to create plots, print results, save tables, and create pdf reports.
     '''
 
-    def __init__(self):
+    def __init__(self, outfile_prefix='Read_mate_dist'):
         '''Initialize metrics for later extraction and conversion.
         '''
         self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
@@ -103,7 +103,7 @@ class HiCQC(object):
 
         self.convert_to_pairs = set(['unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
 
-        self.paths = {'script_dir': os.path.dirname(__file__)}
+        self.paths = {'script_dir': os.path.dirname(__file__), 'outfile_prefix': outfile_prefix}
 
         self.N50 = None
         self.stats = Counter()
@@ -139,11 +139,11 @@ class HiCQC(object):
                 if read.query_name == a.query_name:
                     b = read
                     self.process_pair(a, b)
-
-                    if i % 1000 == 0:
-                        self.update_dup_stats()
                 else:
                     a = read
+
+                if i % 1000 == 0:
+                    self.update_dup_stats()
                 i += 1
 
         self.finalize_stats()
@@ -254,22 +254,25 @@ class HiCQC(object):
         self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = self.stats['pairs_greater_10k_on_contigs_greater_10k'] / \
                                                                             self.stats['pairs_on_contigs_greater_10k']
 
-    def plot_dup_saturation(self, outfile_prefix, target_x=100000000, min_sample=100000, target_y=None):
+    def plot_dup_saturation(self, target_x=100000000, min_sample=100000, target_y=None):
         '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
 
             Args:
-                outfile_prefix (str): prefix of output plot file.
-                self.total_array (np.array): Numpy array of total read counts.
-                self.non_dup_array (np.array): Numpy array of non-duplicate read counts (must be same shape as self.total_array)
                 target_x (int): Total reads to extrapolate to.
                 target_y (int): Non-dup reads to extrapolate to. If specified with target_x, plots a point.
 
+            Uses:
+                self.paths['outfile_prefix'] (str): Path prefix for output files.
+                self.total_array (np.array(int)): Numpy array of total reads, recorded every 1000 reads.
+                self.non_dup_array (np.array(int)): Numpy array of non-duplicate read counts, recorded every 1000 reads.
+
             Sets:
-                observed_dup_rate (float): Observed rate of read duplication
-                extrapolated_dup_rate (float): Rate of duplication extrapolated to target_read_total
-                target_read_total (int): Read count to extrapolate to.
-                dup_sat_V (float): Optimization parameter for saturation curve.
-                dup_sat_K (float): Optimization parameter for saturation curve.
+                self.stats['observed_dup_rate'] (float): Observed rate of read duplication
+                self.stats['extrapolated_dup_rate'] (float): Rate of duplication extrapolated to target_read_total
+                self.stats['target_read_total'] (int): Read count to extrapolate to.
+                self.stats['dup_sat_V'] (float): Optimization parameter for saturation curve.
+                self.stats['dup_sat_K'] (float): Optimization parameter for saturation curve.
+                self.paths['dup_sat_curve'] (str): Path to dup_sat_curve plot.
         '''
 
         self.stats['observed_dup_rate'] = -1
@@ -278,7 +281,7 @@ class HiCQC(object):
         self.stats['dup_sat_V'] = -1
         self.stats['dup_sat_K'] = -1
 
-        outfile = outfile_prefix + '.dup_saturation.png'
+        outfile = self.paths['outfile_prefix'] + '.dup_saturation.png'
         self.paths['dup_sat_curve'] = outfile
 
         if self.total_array[-1] < min_sample:
@@ -359,47 +362,48 @@ class HiCQC(object):
 
         return 0
 
-    def plot_histograms(self, outfile_prefix):
+    def plot_histograms(self):
         '''Make the read distance long, short, and log_log histograms using matplotlib and write them to disk.
 
         Args:
             self.dists (dict(int, int) of mate distances and counts): Distances to plot in histogram.
             self.num_pairs (int): number of read pairs analyzed
-            outfile_prefix (str): path prefix for plot files
+
+        Uses:
+            self.paths['outfile_prefix'] (str):  Path prefix for output files.
         '''
 
         num_dists = sum(self.dists.values())
         num_pairs = self.stats['total_read_pairs']
         title_string = '\nMate distance distribution for first {} read pairs for sample\n{}'.format(num_pairs,
                                                                                                     self.paths['bamname'])
-        fig1 = plt.figure()
+        fig1, ax = plt.subplots(1)
         plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=50)
-        ax = fig1.add_subplot(111)
+
         ax.set_ylim(0.5, num_dists * 2)
         plt.yscale('log', nonposy='clip')
         plt.title(title_string)
         plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
         plt.ylabel('Number of reads')
-        long_hist_path = outfile_prefix + '_long.png'
+        long_hist_path = self.paths['outfile_prefix'] + '_long.png'
         fig1.savefig(long_hist_path)
         plt.close(fig1)
         self.paths['long_hist'] = long_hist_path
 
-        fig2 = plt.figure()
+        fig2, ax = plt.subplots(1)
         plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=range(0, 20000, 500))
-        ax = fig2.add_subplot(111)
         ax.set_xlim(0, 20000)
         ax.set_ylim(0.5, num_pairs * 2)
         plt.yscale('log', nonposy='clip')
         plt.title(title_string)
         plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
         plt.ylabel('Number of reads')
-        short_hist_path = outfile_prefix + '_short.png'
+        short_hist_path = self.paths['outfile_prefix'] + '_short.png'
         fig2.savefig(short_hist_path)
         plt.close(fig2)
         self.paths['short_hist'] = short_hist_path
 
-        fig3 = plt.figure()
+        fig3, ax = plt.subplots(1)
         offset_dists = {}
         for key, value in self.dists.items():
             offset_dists[key+1] = value
@@ -411,7 +415,6 @@ class HiCQC(object):
                                   np.log10(max_dist),
                                   50),
                  log=True)
-        ax = fig3.add_subplot(111)
         ax.set_ylim(0.5, num_pairs * 2)
         plt.yscale('log', nonposy='clip')
         plt.xscale('log')
@@ -420,7 +423,7 @@ class HiCQC(object):
         plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
         plt.ylabel('Number of reads (log scale)')
         plt.tight_layout()
-        log_log_hist_path = outfile_prefix + '_log_log.png'
+        log_log_hist_path = self.paths['outfile_prefix'] + '_log_log.png'
         fig3.savefig(log_log_hist_path)
         plt.close(fig3)
         self.paths['log_log_hist'] = log_log_hist_path
@@ -626,17 +629,15 @@ class HiCQC(object):
                   self.out_stats['perc_different_ref_stub_pairs']
                   )
 
-    def write_stat_table(self, outfile_prefix):
+    def write_stat_table(self):
         '''Writes the stats as a plain text file.
 
         Uses:
             self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
-
-        Args:
-            outfile_prefix (str): Path prefix for tsv output.
+            self.paths['outfile_prefix'] (str):  Path prefix for output files.
         '''
 
-        tsv = outfile_prefix + '.tsv'
+        tsv = self.paths['outfile_prefix'] + '.tsv'
 
         with open(tsv, "w") as outfile:
             for k, v in self.out_stats.items():
@@ -645,37 +646,33 @@ class HiCQC(object):
                     continue
                 print(k, v, sep="\t", file=outfile)
 
-    def write_dists_file(self, outfile_prefix):
+    def write_dists_file(self):
         '''Writes the dists as a plain text file.
 
         Uses:
             self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
+            self.paths['outfile_prefix'] (str):  Path prefix for output files.
 
         Args:
             stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
-            outfile_prefix (str): Path prefix for dist tab output.
-
         '''
-        if not outfile_prefix.endswith(".dists"):
-            outfile_name = outfile_prefix + ".dists"
+        if not self.paths['outfile_prefix'].endswith(".dists"):
+            outfile_name = self.paths['outfile_prefix'] + ".dists"
         else:
-            outfile_name = outfile_prefix
+            outfile_name = self.paths['outfile_prefix']
 
         with open(outfile_name, "w") as outfile:
             for k, v in self.dists.items():
                 print(k, v, sep="\t", file=outfile)
 
-    def write_pdf_report(self, outfile_prefix):
+    def write_pdf_report(self):
         '''Make the pdf report using the template.
         Requires markdown template in the collateral directory of bam_to_mate_hist.
 
         Uses:
             self.paths['script_dir']: Path to bam_to_mate_hist directory.
             self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
-
-        Args:
-            outfile_prefix (str): path to which the report shall be written.
-
+            self.paths['outfile_prefix'] (str):  Path prefix for output files.
         '''
         options = {
             'page-size': 'A4',
@@ -714,11 +711,11 @@ class HiCQC(object):
             html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
 
             # write out just html
-            with open(outfile_prefix + "_qc_report.html", 'w') as html_out:
+            with open(self.paths['outfile_prefix'] + "_qc_report.html", 'w') as html_out:
                 html_out.write(html)
 
             # print html
-            pdfkit.from_string(html, outfile_prefix + "_qc_report.pdf", options=options, css=style_path)
+            pdfkit.from_string(html, self.paths['outfile_prefix'] + "_qc_report.pdf", options=options, css=style_path)
 
 def parse_args():
     '''parse command-line args
@@ -749,7 +746,7 @@ def parse_args():
 
 def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
     '''estimate the desired number of reads total based on the observed reads'''
-    
+
     target_num = len(refs) * target  # desired among-contig
     diff_rate = float(diff_contig) / float(num_pairs)  # rate of among-contig per read pair
     total_num = target_num / diff_rate
@@ -761,21 +758,19 @@ if __name__ == "__main__":
     if dirname != '' and not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    QC = HiCQC()
+    QC = HiCQC(outfile_prefix=args.outfile_prefix)
     if args.num_reads != -1:
         print('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
     else:
         print('parsing all read pairs in bam file {} to QC Hi-C library quality'.format(args.bam_file))
 
     QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
-    QC.plot_dup_saturation(args.outfile_prefix)
+    QC.plot_dup_saturation()
     QC.pass_judgement()
     QC.html_from_judgement()
-    QC.plot_histograms(args.outfile_prefix)
+    QC.plot_histograms()
     QC.stringify_stats()
     QC.print_stats()
-
-    QC.write_stat_table(args.outfile_prefix)
-    QC.write_dists_file(args.outfile_prefix)
-
-    QC.write_pdf_report(args.outfile_prefix)
+    QC.write_stat_table()
+    QC.write_dists_file()
+    QC.write_pdf_report()
