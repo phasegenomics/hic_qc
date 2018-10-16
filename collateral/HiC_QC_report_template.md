@@ -2,27 +2,34 @@
 
 &copy; 2018 Phase Genomics Inc.
 
-## Library statistics
 <center>
 
+## Assembly statistics
+
+| Label                        | Your assembly         |
+|:-----------------------------|----------------------:|
+| BAM file                     | {bamname}             |
+| Assembly size                | {total_length}        |
+| Contig N50                   | {N50}                 |
+| Contigs                      | {contigs}             |
+| Contigs greater than 10KB    | {contigs_greater_10k} |
+
+## Library statistics
+
 | Label                                                           | Your library          | Expected values                               |
-|-----------------------------------------------------------------|:---------------------:|----------------------------------------------:|
-| BAM file                                                        | {bamname}         | N/A                                           |
-| Assembly size                                                   | {total_length}             | N/A                                           |
-| Contig N50                                                      | {N50}                   | N/A                                           |
-| Contigs                                                         | {contigs}           | N/A                                           |
-| Contigs greater than 10KB                                       | {contigs_greater_10k}   | N/A                                           |
+|-----------------------------------------------------------------|----------------------:|----------------------------------------------:|
 | Total read pairs analyzed                                       | {total_read_pairs}             | N/A                                           |
-| Read pairs >10KB apart                               | {perc_pairs_greater_10k}        | 1-15%                                    |
-| Read pairs >10KB apart on contigs >10Kbp     | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%                                   |
-| Read pairs mapping to different contigs/chromosomes  | {perc_intercontig_pairs} | 1-6% (contigs)<br>1-20% (chromosomes)      |
-| Split reads                                          | {perc_split_reads}       | 1-10% (PG libraries) 30%+ (other libraries) |
-| Zero-distance pairs                                  | {perc_zero_dist_pairs}       | 0-20%                                        |
-| Zero map quality reads                          | {perc_mapq0_reads}           | 0-10%                                        |
-| Duplicate reads*                                     | {perc_duplicate_reads}        | 0-10%                                        |
-| Duplicate reads (extrapolated to {target_read_total} reads)*    | {extrapolated_dup_rate} | 0-50%                               |
-| Percent of unmapped reads                                       | {perc_unmapped_reads} | 0-10%                               |
-| Subjective Hi-C library judgment                            | {judgment}             | pass/fail/mixed-results/low-signal           |
+| Read pairs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                                    |
+| Read pairs >10KB apart<br>on contigs >10Kbp                     | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%                                   |
+| Read pairs mapping to different contigs/chromosomes             | {perc_intercontig_pairs}       | 10-60% (contigs)<br>1-20% (chromosomes)      |
+| Read pairs on same strand                                       | {perc_pairs_on_same_strand}    | 2-50%                          |
+| Split reads                                                     | {perc_split_reads}             | 1-10% (PG libraries)<br>30%+ (other libraries) |
+| Zero-distance pairs                                             | {perc_zero_dist_pairs}         | 0-20%                                        |
+| Zero map quality reads                                          | {perc_mapq0_reads}             | 0-10%                                        |
+| Duplicate reads*                                                | {perc_duplicate_reads}         | 0-10%                                        |
+| Duplicate reads (extrapolated to<br>{target_read_total} reads)* | {extrapolated_dup_rate}        | 0-50%                               |
+| Percent of unmapped reads                                       | {perc_unmapped_reads}          | 0-10%                               |
+| Subjective Hi-C library judgment                                | {judgment}                     | pass/fail/mixed-results/low-signal           |
 </center>
 
 *If this quantity is zero, see duplicate read section below. If negative, there are too few reads sampled to estimate duplicates.
@@ -48,31 +55,36 @@ We briefly describe some of the statistics we compute below to aid interpretatio
 While Hi-C data is nuanced and some analyses are more sensitive to data quality than others,  a basic quality assessment can usually be made by examining the mapping characteristics of the Hi-C library. Based on our experience working with Hi-C data, we classify libraries into one of four QC categories:
  - **Pass** means that from everything we can tell, the library looks to be in great shape. Proceed to full sequencing or analysis with confidence.
  - **Mixed Results** means that the library is good in some ways, but not in others. Perhaps it has a good amount of long range data, but there are also an elevated number of read pairs with MAPQ 0. Usually, data generated from Mixed Results libraries works out just fine (a high MAPQ 0 number can be due to repetitiveness in the assembly, for example), but it is good to know there may have been a few hiccups in the library prep in case troubleshooting is needed down the line.
- - **Low Signal** means that the library contains good Hi-C signal, but it's in lower proportion than usual. These libraries are generally good for generating useful Hi-C data, but you may need to sequence a little deeper than normal to get enough of it. You might consider size selecting the library to discard reads outside the 300-700bp range, as these are unlikely to be good Hi-C junctions. Alternatively, you might just want to prep a new library.
+ - **Low Signal** means that the library contains good Hi-C signal, but it's in lower percentage than usual. These libraries are generally good for generating useful Hi-C data, but you may need to sequence a little deeper than normal to get enough of it. You might consider size selecting the library to discard reads outside the 300-700bp range, as these are unlikely to be good Hi-C junctions. Alternatively, you might just want to prep a new library.
  - **Fail** means that the library, or perhaps the library in combination with a low-contiguity or error-prone assembly, does not look useful. Sometimes size selection can rescue such libraries, but sometimes a new prep is the only way forward. (Contact us)[mailto:support@phasegenomics.com] if you get a fail and we will help you out.
 
 ### Read pairs > 10kbp apart
-These are the proportion of read pairs which map to the same contig, with at least 10kbp separating them. More is always better, but because this number is affected by assembly contiguity, there is not a specifc target threshold. Note that for some analyses, such as scaffolding or metagenomic deconvolution, read pairs that map to the same contig are not useful because they do not provide information that the assembly doesn't already contain. This statistic is more useful for these projects because it correlates with library prep success. These reads are useful for analyses like structural variant analysis or assembly misjoin detection, because they provide detailed structural information about existing assembled sequences.
+This is the percentage of read pairs which map to the same contig, with at least 10kbp separating them. More is always better, but because this number is affected by assembly contiguity, there is not a specific target threshold. Note that for some analyses, such as scaffolding or metagenomic deconvolution, read pairs that map to the same contig are not useful because they do not provide information that the assembly doesn't already contain. This statistic is more useful for these projects because it correlates with library prep success. These reads are useful for analyses like structural variant analysis or assembly misjoin detection, because they provide detailed structural information about existing assembled sequences.
 
 ### Read pairs > 10kbp apart mapping to contigs >10kbp
-These are the proportion of read pairs which map to the same contig, with at least 10kbp separating them, but only considering read pairs mapping to contigs that are at least 10kbp long. This attempts to corrects for assembly contiguity differences. More is always better, but typically at least 5% is desired. Note that for some analyses, such as scaffolding or metagenomic deconvolution, read pairs that map to the same contig are not useful because they do not provide information that the assembly doesn't already contain. This statistic is more useful for these projects because it correlates with library prep success. These reads are useful for analyses like structural variant analysis or assembly misjoin detection, because they provide detailed structural information about existing assembled sequences.
+This is the percentage of read pairs which map to the same contig, with at least 10kbp separating them, but only considering read pairs mapping to contigs that are at least 10kbp long. This attempts to corrects for assembly contiguity differences. More is always better, but typically at least 5% is desired. Note that for some analyses, such as scaffolding or metagenomic deconvolution, read pairs that map to the same contig are not useful because they do not provide information that the assembly doesn't already contain. This statistic is more useful for these projects because it correlates with library prep success. These reads are useful for analyses like structural variant analysis or assembly misjoin detection, because they provide detailed structural information about existing assembled sequences.
 
 ### Read pairs mapping to different contigs or chromosomes
-These are the proportion of read pairs which map to different contigs, which is particularly important . More is always better, but because this number is affected by assembly quality, there is not a specifc target threshold, although at least 20% on *de novo* assembly projects is helpful. These reads are the primary source of information for Hi-C scaffolding or metagenomic deconvolution analyses. This statistic useful on most *de novo* proects because it also correlates with library prep success. These reads may be useful for analyses like structural variant analysis or assembly misjoin detection if those are performed on lower contiguity assemblies, because they provide detailed structural information about sequences which were not assembled together into contigs.
+This is the percentage of read pairs which map to different contigs, which is particularly important . More is always better, but because this number is affected by assembly quality, there is not a specific target threshold, although at least 20% on *de novo* assembly projects is helpful. These reads are the primary source of information for Hi-C scaffolding or metagenomic deconvolution analyses. This statistic useful on most *de novo* projects because it also correlates with library prep success. These reads may be useful for analyses like structural variant analysis or assembly misjoin detection if those are performed on lower contiguity assemblies, because they provide detailed structural information about sequences which were not assembled together into contigs.
+
+### Read pairs on same strand
+This is the percentage of reads mapping to the same contig in the same orientation. For shotgun libraries, this should be ~1%, but for a pure HiC library, it could be as high as 50%.
 
 ### Split reads
 Traditionally, split reads have been a favored measure of Hi-C library quality because they directly exhibit Hi-C junctions. Most traditional Hi-C library preparations produce many reads that sequence through junctions because their Hi-C junctions tend to occur randomly on the proximity ligated chimeric molecules. However, Phase Genomics has introduced steps into our protocol which tend to make junctions occur closer to the center of the proximity ligated chimeric molecules.
 
-Phase Genomics libraries, whether produced in our laboratory or by means of our Plant, Animal, Human, or Microbe Hi-C kits, will have a generally lower fraction of split reads. This is because we have optimized our Hi-C protocol to enrich for slightly longer fragments around Hi-C junctions, such that each read is less likely to read through a junction even when a junction is present.
+Phase Genomics libraries, whether produced in our laboratory or by means of our Plant, Animal, Human, or Microbe Hi-C kits, will have a generally lower percentage of split reads. This is because we have optimized our Hi-C protocol to enrich for slightly longer fragments around Hi-C junctions, such that each read is less likely to read through a junction even when a junction is present.
 
 This innovation improves mappability and increases the amount of useful data, and reduces the utility of split read measurements to assess library quality. We therefore rely more heavily on metrics that directly relate to the usefulness of Hi-C reads for proximity analysis, such as the percentage of read pairs with mates mapping far away, or mapping to different contigs.
 
 ### Duplicate reads
 **IMPORTANT NOTE: THE DUPLICATE FLAG IS NOT SET BY DEFAULT IN A BAM FILE. YOU NEED TO EXPLICITLY SET IT BY E.G. RUNNING SAMBLASTER ON YOUR BAM FILE. IF THE PERCENT OF DUPLICATES IS EXACTLY ZERO, IT PROBABLY MEANS THAT THE FLAG HAS NOT BEEN SET.**
 
-Sequencing libraries frequently contain duplicate reads due to PCR or optical issues. These are generally considered to be non-informative because they are chemical artifacts rather than biological signal, and are thus typically excluded from further analysis. Higher proportions of duplicate reads are also correlated with low library complexity and poor library performance, making the proportion of duplicate reads a useful quality control measure.
+Sequencing libraries frequently contain duplicate reads due to PCR or optical issues. These are generally considered to be non-informative because they are chemical artifacts rather than biological signal, and are thus typically excluded from further analysis. Higher percentages of duplicate reads are also correlated with low library complexity and poor library performance, making the percentage of duplicate reads a useful quality control measure.
 
-Also, because we often recommend sequencing a few million read pairs for QC prior to a full sequencing run, it is helpful to project the amount of duplicate reads a full run might generate. To do this, we attempt to fit a curve to the rate at which duplicates are observed in a library, and then project the proportion of duplicates that would be expected in a deeper sequencing run. This projection is a reasonably useful heuristic, but it is not a guarantee that the true duplicate rate will be near a specific value. QC sequencing data with a very low number of reads or which mapped well at a very low rate can distort this calculation. We attempt to identify low confidence calculations and report that we could not extrapolate the expected duplicate frequency when it is possible to do so.
+Also, because we often recommend sequencing a few million read pairs for QC prior to a full sequencing run, it is helpful to project the amount of duplicate reads a full run might generate. To do this, we attempt to fit a curve to the rate at which duplicates are observed in a library, and then project the percentage of duplicates that would be expected in a deeper sequencing run. This projection is a reasonably useful heuristic, but it is not a guarantee that the true duplicate rate will be near a specific value. QC sequencing data with a very low number of reads or which mapped well at a very low rate can distort this calculation. We attempt to identify low confidence calculations and report that we could not extrapolate the expected duplicate frequency when it is possible to do so.
+
+We use the function `f(x) = V * x / (x + K)` to fit V and K, then extrapolate to the target number of reads.
 
 ### Unmapped reads
 A high percent of unmapped reads may indicate sequence is missing from the reference, the reads are mapped to the wrong reference, or the sample is contaminated.
