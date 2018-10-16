@@ -64,8 +64,10 @@ class HiCQC(object):
                                      'different_ref_stub_pairs',
                                      'pairs_greater_10k',
                                      'zero_dist_pairs',
+                                     'total_pairs_on_same_contig',
                                      'pairs_on_contigs_greater_10k',
                                      'pairs_greater_10k_on_contigs_greater_10k',
+                                     'pairs_on_same_strand',
                                      'total_read_pairs'
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
@@ -78,7 +80,8 @@ class HiCQC(object):
                                'perc_duplicate_reads': ('duplicate_reads', 'total_reads'),
                                'perc_mapq0_reads': ('mapq0_reads', 'total_reads'),
                                'perc_unmapped_reads': ('unmapped_reads', 'total_reads'),
-                               'perc_different_ref_stub_pairs': ('different_ref_stub_pairs', 'total_read_pairs')
+                               'perc_different_ref_stub_pairs': ('different_ref_stub_pairs', 'total_read_pairs'),
+                               'perc_pairs_on_same_strand': ('pairs_on_same_strand', 'total_pairs_on_same_contig')
                                }
 
         self.convert_to_pairs = set(['unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
@@ -180,6 +183,9 @@ class HiCQC(object):
                 self.stats['different_ref_stub_pairs'] += 1
 
         else:
+            self.stats['total_pairs_on_same_contig'] += 1
+            if (a.is_reverse and b.is_reverse) or (not a.is_reverse and not b.is_reverse):
+                self.stats['pairs_on_same_strand'] += 1
             dist = abs(a.reference_start - b.reference_start)
             self.dists[dist] += 1
 
@@ -437,12 +443,17 @@ class HiCQC(object):
                             'total_length': (self.total_length, '{:,}'),
                             'total_reads': (self.stats['total_reads'], '{:,}'),
                             'target_read_total': (self.stats['target_read_total'], '{:,}'),
-                            'extrapolated_dup_rate': (self.stats['extrapolated_dup_rate'], '{}'),
+                            'extrapolated_dup_rate': (self.stats['extrapolated_dup_rate'] * 100 \
+                                                      if self.stats['extrapolated_dup_rate'] > 0 \
+                                                      else self.stats['extrapolated_dup_rate'], '{:.2f}%'),
                             'judgment': (self.judge_html, '{}')
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
-            self.out_stats[key] = '{:.1f}%'.format((self.stats[num] / self.stats[denom]) * 100)
+            try:
+                self.out_stats[key] = '{:.2f}%'.format((self.stats[num] / self.stats[denom]) * 100)
+            except ZeroDivisionError as e:
+                self.out_stats[key] = 'NaN'
 
         for item in self.convert_to_pairs:
             self.out_stats[item] = '{:,}'.format(self.stats[item] // 2)
@@ -543,7 +554,7 @@ class HiCQC(object):
               self.out_stats['perc_duplicate_reads']
               )
 
-        print('Duplicate fraction at {} reads: {} (-1 if insufficient to estimate)'.format(self.out_stats['target_read_total'], self.out_stats['extrapolated_dup_rate']))
+        print('Percent duplicated at {} reads: {} (-1 if insufficient to estimate)'.format(self.out_stats['target_read_total'], self.out_stats['extrapolated_dup_rate']))
 
         if count_diff_refname_stub:
             print('Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad ' \
