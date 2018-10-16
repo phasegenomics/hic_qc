@@ -27,6 +27,17 @@ import markdown as md
 from scipy import optimize
 
 def saturation(x, V, K):
+    '''Computes non-duplicate read count given x reads and parameters V and K.
+    Intended for use within scipy optimize.
+
+    Args:
+        x (int): Read count
+        V (float): Optimization parameter
+        K (float): Optimization parameter
+    Returns:
+        (float) Estimated non-duplicate read count
+    '''
+
     return V * x / (x + K)
 
 def calc_nxx(header, xx=50):
@@ -58,7 +69,13 @@ def calc_nxx(header, xx=50):
     return contig_len, total
 
 class HiCQC(object):
+    '''Class for extracting QC metrics from bam files and using them
+    to create plots, print results, save tables, and create pdf reports.
+    '''
+
     def __init__(self):
+        '''Initialize metrics for later extraction and conversion.
+        '''
         self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
         self.per_pair_metrics = set(['intercontig_pairs',
                                      'different_ref_stub_pairs',
@@ -95,6 +112,11 @@ class HiCQC(object):
         self.non_dup_array = []
 
     def parse_bam(self, bamfile, max_read_pairs=-1):
+        '''Extract QC metrics from a specified bam file. It requires a read name sorted bam file.
+        By default, it will parse all reads in the bam file, but a limit can be specified by max_read_pairs.
+        This method performs read pairing.
+        '''
+
         self.paths['bamfile'] = bamfile
         self.paths['bamname'] = os.path.basename(bamfile)
 
@@ -153,6 +175,14 @@ class HiCQC(object):
         self.contigs_greater_10k = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > 10000])
 
     def process_pair(self, a, b):
+        '''Extract stats from a pair of reads.
+        Updates per read and per mapped pair stats separately.
+
+        Args:
+            a (pysam.AlignedSegment) One read in pair
+            b (pysam.AlignedSegment) Other read in pair
+        '''
+
         self.stats['total_read_pairs'] += 1
 
         self.update_read_stats(a)
@@ -162,6 +192,11 @@ class HiCQC(object):
             self.update_mapped_pair_stats(a, b)
 
     def update_read_stats(self, read):
+        '''Update per read stats based on given read.
+
+        Args:
+            read (pysam.AlignedSegment): read to extract stats from
+        '''
         self.stats['total_reads'] += 1
         if read.is_unmapped:
             self.stats['unmapped_reads'] += 1
@@ -173,6 +208,12 @@ class HiCQC(object):
             self.stats['duplicate_reads'] += 1
 
     def update_mapped_pair_stats(self, a, b):
+        '''Update mapped pair stats given a pair of reads.
+
+        Args:
+            a (pysam.AlignedSegment): One read
+            b (pysam.AlignedSegment): Other read
+        '''
         if a.reference_name != b.reference_name:
             self.stats['intercontig_pairs'] += 1
 
@@ -199,10 +240,15 @@ class HiCQC(object):
                     self.stats['pairs_greater_10k_on_contigs_greater_10k'] += 1
 
     def update_dup_stats(self):
+        '''Update lists of duplication statistics.
+        '''
+
         self.total_array.append(self.stats['total_reads'])
         self.non_dup_array.append(self.stats['total_reads'] - self.stats['duplicate_reads'])
 
     def finalize_stats(self):
+        '''Finalize stats from a bam file after reads are processed.
+        '''
         self.total_array = np.array(self.total_array)
         self.non_dup_array = np.array(self.non_dup_array)
         self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = self.stats['pairs_greater_10k_on_contigs_greater_10k'] / \
@@ -218,8 +264,12 @@ class HiCQC(object):
                 target_x (int): Total reads to extrapolate to.
                 target_y (int): Non-dup reads to extrapolate to. If specified with target_x, plots a point.
 
-            Returns:
-                Observed duplication rate, extrapolated duplication rate, and target total reads
+            Sets:
+                observed_dup_rate (float): Observed rate of read duplication
+                extrapolated_dup_rate (float): Rate of duplication extrapolated to target_read_total
+                target_read_total (int): Read count to extrapolate to.
+                dup_sat_V (float): Optimization parameter for saturation curve.
+                dup_sat_K (float): Optimization parameter for saturation curve.
         '''
 
         self.stats['observed_dup_rate'] = -1
@@ -310,11 +360,12 @@ class HiCQC(object):
         return 0
 
     def plot_histograms(self, outfile_prefix):
-        '''make the read distance histograms using matplotlib and write them to disk.
+        '''Make the read distance long, short, and log_log histograms using matplotlib and write them to disk.
+
         Args:
-            dists (dictionary of mate distances and counts): Distances to plot in histogram.
-            num_pairs (int): number of read pairs analyzed
-            bamfile (str): path to bamfile of dists
+            self.dists (dict(int, int) of mate distances and counts): Distances to plot in histogram.
+            self.num_pairs (int): number of read pairs analyzed
+            outfile_prefix (str): path prefix for plot files
         '''
 
         num_dists = sum(self.dists.values())
@@ -375,12 +426,12 @@ class HiCQC(object):
         self.paths['log_log_hist'] = log_log_hist_path
 
     def html_from_judgement(self):
-        '''return a formatted HTML string based on two judgment bool values
-            Args:
-                good (bool): does the hi-c library show characteristics of 'goodness', e.g. many long-distance contacts etc.
-                bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
-            Returns:
-                str: an HTML string to be substituted into the report to subjectively grade the assembly. 4 possibilities.
+        '''Set a formatted HTML string based on two judgment bool values
+            Uses:
+                self.judge_good (bool): does the hi-c library show characteristics of 'goodness', e.g. many long-distance contacts etc.
+                self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
+            Sets:
+                self.judge_html (str): an HTML string to be substituted into the report to subjectively grade the assembly. 4 possibilities.
             Raises:
                 ValueError: if impossible logical situations occur given two bools.
 
@@ -400,11 +451,13 @@ class HiCQC(object):
     def pass_judgement(self):
         '''Pass judgement on the library according to certain mostly subjective ideas about what is good
 
-        Args:
-            stat_dict ({str: float/str}): mapping of lib characteristics to their values
+        Uses:
+            self.stats ({str: float/str}): mapping of lib characteristics to their values
 
-        Returns:
-            judgement (str): an HTML string to put into pass/fail box
+        Sets:
+            self.judge_good (bool): does the hi-c library show characteristics of 'goodness', e.g. many long-distance contacts etc.
+            self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
+            self.judge_html (str): an HTML string to put into pass/fail box
         '''
         long_contacts = self.stats['pairs_greater_10k'] / self.stats['total_read_pairs'] > 0.05
         long_floor = self.stats['pairs_greater_10k'] / self.stats['total_read_pairs'] > 0.01
@@ -433,7 +486,24 @@ class HiCQC(object):
         self.html_from_judgement()
 
     def stringify_stats(self):
-        '''Convert stats to output dictionary with pretty strings and percents.'''
+        '''Convert stats to output dictionary with pretty strings and percents.
+
+        Uses:
+            self.to_percents ({str: (int, int)}): Mapping of keys to numerator, denominator pair for conversion to percents.
+            self.convert_to_pairs (set(str)): Set of keys from stats dict that represent per read statistics.
+            self.per_pair_metrics (set(str)): Set of keys from stats dict that represent per read pair statistics.
+            self.paths ({str: str}): Mapping of names to paths.
+
+        Sets:
+            self.other_stats ({str: (float, str)}): Mapping of keys to value, format pair.
+            self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
+        '''
+
+
+        if self.stats['extrapolated_dup_rate'] > 0:
+            extrap_dup_rate = self.stats['extrapolated_dup_rate'] * 100
+        else:
+            extrap_dup_rate = self.stats['extrapolated_dup_rate']
 
         # Dict of key --> (value, fmt) pairs for items that aren't counts
         self.other_stats = {
@@ -443,9 +513,7 @@ class HiCQC(object):
                             'total_length': (self.total_length, '{:,}'),
                             'total_reads': (self.stats['total_reads'], '{:,}'),
                             'target_read_total': (self.stats['target_read_total'], '{:,}'),
-                            'extrapolated_dup_rate': (self.stats['extrapolated_dup_rate'] * 100 \
-                                                      if self.stats['extrapolated_dup_rate'] > 0 \
-                                                      else self.stats['extrapolated_dup_rate'], '{:.2f}%'),
+                            'extrapolated_dup_rate': (extrap_dup_rate, '{:.2f}%'),
                             'judgment': (self.judge_html, '{}')
                             }
         self.out_stats = {}
@@ -474,20 +542,13 @@ class HiCQC(object):
                 print(key, value, fmt)
                 sys.exit()
 
-
     def print_stats(self, count_diff_refname_stub=False):
-        '''Process a dict of results and data suitable to be passed to the report template for splatting.
-        Now that dict processing is happening mostly outside of here,
+        '''Print statistical summary to standard out.
 
-        Args:
-            stat_list ([str]): the four statistics estimated from the bam file
-                               (stat_list = [diff_chr, dists, diff_stub, split_reads, dupe_reads, refs, zero_dists, num_reads, extrap_dup_rate, target_reads])
-            bamfile (str): path to bam file
-            outfile_prefix (str): path to where output files will be written
-            count_diff_refname_stub (bool): whether we are counting the contig name stub differences.
-
-        Returns:
-            stat_dict ({str:float/str}: mappings of the stats and data suitable to be consumed by report generator
+        Uses:
+            self.paths ({str: str}): Mapping of names to paths.
+            self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
+            count_diff_refname_stub (bool): Whether we are counting the contig name stub differences.
         '''
 
         print('Histograms written to:', self.paths['long_hist'], self.paths['short_hist'], self.paths['log_log_hist'])
@@ -568,10 +629,11 @@ class HiCQC(object):
     def write_stat_table(self, outfile_prefix):
         '''Writes the stats as a plain text file.
 
-        Args:
-            stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
-            outfile_name (str): a path to which to write the data.
+        Uses:
+            self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
 
+        Args:
+            outfile_prefix (str): Path prefix for tsv output.
         '''
 
         tsv = outfile_prefix + '.tsv'
@@ -586,9 +648,12 @@ class HiCQC(object):
     def write_dists_file(self, outfile_prefix):
         '''Writes the dists as a plain text file.
 
+        Uses:
+            self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
+
         Args:
             stat_dict ({str:str/float}): dict mapping stat labels to their values and other info.
-            outfile_name (str): a path to which to write the data.
+            outfile_prefix (str): Path prefix for dist tab output.
 
         '''
         if not outfile_prefix.endswith(".dists"):
@@ -602,10 +667,13 @@ class HiCQC(object):
 
     def write_pdf_report(self, outfile_prefix):
         '''Make the pdf report using the template.
+        Requires markdown template in the collateral directory of bam_to_mate_hist.
+
+        Uses:
+            self.paths['script_dir']: Path to bam_to_mate_hist directory.
+            self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
 
         Args:
-            qc_repo_path (str): path the qc tool repo, which holds markdown and style templates
-            stat_dict ({str: str/float}): a dictionary of relevant data (stats, file paths) regarding the lib to be used in the report.
             outfile_prefix (str): path to which the report shall be written.
 
         '''
@@ -627,7 +695,7 @@ class HiCQC(object):
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
         commit_path = os.path.join(self.paths['script_dir'], "collateral", "commit_id")
         if not os.path.exists(template_path):
-            UserWarning("can't find markdown template at {0}! skipping making template.".format(
+            UserWarning("Can't find markdown template at {}! Exitting...".format(
                 qc_repo_path)
             )
             sys.exit(1)
@@ -640,8 +708,8 @@ class HiCQC(object):
 
 
         with open(template_path) as template_fh:
-            str = template_fh.read()
-            sub_str = str.replace("COMMIT_VERSION", commit_id)  # versions report
+            template_string = template_fh.read()
+            sub_str = template_string.replace("COMMIT_VERSION", commit_id)  # versions report
             sub_str = sub_str.format(**self.out_stats)  # splat the statistics and path into the markdown, render as html
             html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
 
@@ -681,6 +749,7 @@ def parse_args():
 
 def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
     '''estimate the desired number of reads total based on the observed reads'''
+    
     target_num = len(refs) * target  # desired among-contig
     diff_rate = float(diff_contig) / float(num_pairs)  # rate of among-contig per read pair
     total_num = target_num / diff_rate
