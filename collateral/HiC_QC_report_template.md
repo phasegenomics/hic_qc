@@ -1,41 +1,49 @@
-# Hi-C library QC report
-
-&copy; 2018 Phase Genomics Inc.
-
 <center>
+<img src="{pg_logo}" alt="Phase Genomics logo" width="200" class="center">
+
+# Hi-C library QC report
 
 ## Assembly statistics
 
-| Label                        | Your assembly         |
-|:-----------------------------|----------------------:|
+| Label                        | Assembly statistics   |
+|:-----------------------------|-------------------------:|
 | BAM file                     | {bamname}             |
 | Assembly size                | {total_length}        |
-| Contig N50                   | {N50}                 |
-| Contigs                      | {contigs}             |
-| Contigs greater than 10KB    | {contigs_greater_10k} |
+| Contig (CTG) N50             | {N50}                 |
+| CTGs                          | {contigs}             |
+| CTGs > 10KB                   | {contigs_greater_10k} |
 
 ## Library statistics
 
-| Label                                                           | Your library          | Expected values                               |
-|-----------------------------------------------------------------|----------------------:|----------------------------------------------:|
-| Total read pairs analyzed                                       | {total_read_pairs}             | N/A                                           |
-| Read pairs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                                    |
-| Read pairs >10KB apart<br>on contigs >10Kbp                     | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%                                   |
-| Read pairs mapping to different contigs/chromosomes             | {perc_intercontig_pairs}       | 10-60% (contigs)<br>1-20% (chromosomes)      |
-| Read pairs on same strand                                       | {perc_pairs_on_same_strand}    | 2-50%                          |
-| Split reads                                                     | {perc_split_reads}             | 1-10% (PG libraries)<br>30%+ (other libraries) |
-| Zero-distance pairs                                             | {perc_zero_dist_pairs}         | 0-20%                                        |
-| Zero map quality reads                                          | {perc_mapq0_reads}             | 0-10%                                        |
-| Duplicate reads*                                                | {perc_duplicate_reads}         | 0-10%                                        |
-| Duplicate reads (extrapolated to<br>{target_read_total} reads)* | {extrapolated_dup_rate}        | 0-50%                               |
-| Percent of unmapped reads                                       | {perc_unmapped_reads}          | 0-10%                               |
-| Subjective Hi-C library judgment                                | {judgment}                     | pass/fail/mixed-results/low-signal           |
+| Label                                                    | Library statistics             | Expected values                               |
+| :-----------                                             | -----------------:| --------------------:|
+| Total read pairs (RPs) analyzed                          | {total_read_pairs}             | N/A                                           |
+| High quality (HQ)* RPs                                   | {perc_hq_rp}                   | N/A                                           |
+| RPs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                                    |
+| RPs >10KB apart (CTGs >10KB)                             | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%                                   |
+| HQ RPs >10KB apart (CTGs >10KB)                          | {perc_pairs_intra_hq_gt10kbp} | 1-15%                                  |
+| Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
+| Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
+| Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
+| Same strand HQ RPs                                       | {perc_pairs_on_same_strand_hq}    | 2-50%                          |
+| Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
+| Zero-distance RPs                                        | {perc_zero_dist_pairs}         | 0-20%                                        |
+| Zero map quality reads                                   | {perc_mapq0_reads}             | 0-10%                                        |
+| Duplicate reads**                                        | {perc_duplicate_reads}         | 0-10%                                        |
+| Duplicate reads (extrapolated)**                         | {extrapolated_dup_rate}        | 0-50%                               |
+| Unmapped reads                                           | {perc_unmapped_reads}          | 0-10%                               |
+| Subjective Hi-C library judgment                         | {judgment}                     | See Judgment           |
 </center>
 
-*If this quantity is zero, see duplicate read section below. If negative, there are too few reads sampled to estimate duplicates.
-
+<div class="small left">
+*High quality (HQ) read pairs have minimum mapping quality >= 20, maximum edit distance <= 5, and are not duplicates.<br>
+**If this quantity is zero, see duplicate read section below. If negative, there are too few reads sampled to estimate duplicates.<br>
+***Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
+<br>
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
+</div>
 
+<div class="pagebreak"> </div>
 
 ## Aligned mate distance histograms
 
@@ -44,14 +52,16 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 
 !["Log-log interaction histogram"]({log_log_hist})
 
+<div class="pagebreak"> </div>
 ## Duplicate read saturation curve
 
 !["Duplicate read saturation curve"]({dup_sat_curve})
 
+<div class="pagebreak"> </div>
 ## Alignment distance statistics and plots
 We briefly describe some of the statistics we compute below to aid interpretation of this report.
 
-### Subjective Hi-C Library Judgement
+### Subjective Hi-C Library Judgment
 While Hi-C data is nuanced and some analyses are more sensitive to data quality than others,  a basic quality assessment can usually be made by examining the mapping characteristics of the Hi-C library. Based on our experience working with Hi-C data, we classify libraries into one of four QC categories:
  - **Pass** means that from everything we can tell, the library looks to be in great shape. Proceed to full sequencing or analysis with confidence.
  - **Mixed Results** means that the library is good in some ways, but not in others. Perhaps it has a good amount of long range data, but there are also an elevated number of read pairs with MAPQ 0. Usually, data generated from Mixed Results libraries works out just fine (a high MAPQ 0 number can be due to repetitiveness in the assembly, for example), but it is good to know there may have been a few hiccups in the library prep in case troubleshooting is needed down the line.
@@ -85,6 +95,8 @@ Sequencing libraries frequently contain duplicate reads due to PCR or optical is
 Also, because we often recommend sequencing a few million read pairs for QC prior to a full sequencing run, it is helpful to project the amount of duplicate reads a full run might generate. To do this, we attempt to fit a curve to the rate at which duplicates are observed in a library, and then project the percentage of duplicates that would be expected in a deeper sequencing run. This projection is a reasonably useful heuristic, but it is not a guarantee that the true duplicate rate will be near a specific value. QC sequencing data with a very low number of reads or which mapped well at a very low rate can distort this calculation. We attempt to identify low confidence calculations and report that we could not extrapolate the expected duplicate frequency when it is possible to do so.
 
 We use the function `f(x) = V * x / (x + K)` to fit V and K, then extrapolate to the target number of reads.
+
+Duplicate reads projected to {target_read_total} reads.
 
 ### Unmapped reads
 A high percent of unmapped reads may indicate sequence is missing from the reference, the reads are mapped to the wrong reference, or the sample is contaminated.
