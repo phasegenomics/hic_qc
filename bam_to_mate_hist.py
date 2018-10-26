@@ -78,6 +78,7 @@ class HiCQC(object):
         '''
         self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
         self.per_pair_metrics = set(['intercontig_pairs',
+                                     'intercontig_pairs_hq',
                                      'different_ref_stub_pairs',
                                      'pairs_greater_10k',
                                      'zero_dist_pairs',
@@ -85,25 +86,34 @@ class HiCQC(object):
                                      'pairs_on_contigs_greater_10k',
                                      'pairs_greater_10k_on_contigs_greater_10k',
                                      'pairs_on_same_strand',
-                                     'total_read_pairs'
+                                     'pairs_intracontig_hq_gt10kbp',
+                                     'pairs_intracontig_hq',
+                                     'pairs_on_same_strand_hq',
+                                     'total_read_pairs',
+                                     'total_read_pairs_hq'
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
         self.to_percents =    {
                                'perc_zero_dist_pairs': ('zero_dist_pairs', 'total_read_pairs'),
                                'perc_pairs_greater_10k': ('pairs_greater_10k', 'total_read_pairs'),
                                'perc_pairs_greater_10k_on_contigs_greater_10k': ('pairs_greater_10k_on_contigs_greater_10k', 'pairs_on_contigs_greater_10k'),
+                               'perc_pairs_intra_hq_gt10kbp': ('pairs_intracontig_hq_gt10kbp', 'pairs_intracontig_hq'),
+                               'perc_pairs_on_same_strand': ('pairs_on_same_strand', 'total_pairs_on_same_contig'),
+                               'perc_pairs_on_same_strand_hq': ('pairs_on_same_strand_hq', 'pairs_intracontig_hq'),
                                'perc_intercontig_pairs': ('intercontig_pairs', 'total_read_pairs'),
+                               'perc_intercontig_pairs_hq': ('intercontig_pairs_hq', 'total_read_pairs_hq'),
                                'perc_split_reads': ('split_reads', 'total_reads'),
                                'perc_duplicate_reads': ('duplicate_reads', 'total_reads'),
                                'perc_mapq0_reads': ('mapq0_reads', 'total_reads'),
                                'perc_unmapped_reads': ('unmapped_reads', 'total_reads'),
+                               'perc_hq_rp': ('total_read_pairs_hq', 'total_read_pairs'),
                                'perc_different_ref_stub_pairs': ('different_ref_stub_pairs', 'total_read_pairs'),
-                               'perc_pairs_on_same_strand': ('pairs_on_same_strand', 'total_pairs_on_same_contig')
                                }
 
         self.convert_to_pairs = set(['unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
 
         self.paths = {'script_dir': os.path.dirname(__file__), 'outfile_prefix': outfile_prefix}
+        self.paths['pg_logo'] = os.path.join(self.paths['script_dir'], 'collateral', 'PGBlueLogoHorSmall.png')
 
         self.N50 = None
         self.stats = Counter()
@@ -214,8 +224,17 @@ class HiCQC(object):
             a (pysam.AlignedSegment): One read
             b (pysam.AlignedSegment): Other read
         '''
+
+        is_high_qual_pair = self.is_high_qual_pair(a, b)
+
+        if is_high_qual_pair:
+            self.stats['total_read_pairs_hq'] += 1
+
         if a.reference_name != b.reference_name:
             self.stats['intercontig_pairs'] += 1
+
+            if is_high_qual_pair:
+                self.stats['intercontig_pairs_hq'] += 1
 
             refa_stub = a.reference_name.split('.')[0]
             refb_stub = b.reference_name.split('.')[0]
@@ -230,6 +249,13 @@ class HiCQC(object):
             dist = abs(a.reference_start - b.reference_start)
             self.dists[dist] += 1
 
+            if is_high_qual_pair:
+                self.stats['pairs_intracontig_hq'] += 1
+                if dist > 10000:
+                    self.stats['pairs_intracontig_hq_gt10kbp'] += 1
+                if (a.is_reverse and b.is_reverse) or (not a.is_reverse and not b.is_reverse):
+                    self.stats['pairs_on_same_strand_hq'] += 1
+
             if dist > 10000:
                 self.stats['pairs_greater_10k'] += 1
             if dist == 0:
@@ -238,6 +264,9 @@ class HiCQC(object):
                 self.stats['pairs_on_contigs_greater_10k'] += 1
                 if dist > 10000:
                     self.stats['pairs_greater_10k_on_contigs_greater_10k'] += 1
+
+    def is_high_qual_pair(self, a, b):
+        return min(a.mapping_quality, b.mapping_quality) >= 20 and max(a.get_tag('NM'), b.get_tag('NM') <= 5) and not a.is_duplicate and not b.is_duplicate
 
     def update_dup_stats(self):
         '''Update lists of duplication statistics.
@@ -462,9 +491,9 @@ class HiCQC(object):
             self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
-        long_contacts = self.stats['pairs_greater_10k'] / self.stats['total_read_pairs'] > 0.05
-        long_floor = self.stats['pairs_greater_10k'] / self.stats['total_read_pairs'] > 0.01
-        useful_contacts = self.stats['intercontig_pairs'] / self.stats['total_read_pairs'] > 0.3
+        long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.05
+        long_floor = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
+        useful_contacts = self.stats['intercontig_pairs_hq'] / self.stats['total_read_pairs_hq'] > 0.1
         low_contiguity = self.N50 < 100000
         many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.1
         many_many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.2
@@ -691,6 +720,7 @@ class HiCQC(object):
         template_path = os.path.join(self.paths['script_dir'], "collateral", "HiC_QC_report_template.md")
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
         commit_path = os.path.join(self.paths['script_dir'], "collateral", "commit_id")
+
         if not os.path.exists(template_path):
             UserWarning("Can't find markdown template at {}! Exitting...".format(
                 qc_repo_path)
