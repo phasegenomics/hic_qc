@@ -45,6 +45,32 @@ p {
   font-size: 14px;
 }
 
+block_img {
+  float: right;
+  clear: left;
+}
+
+tr:nth-child(even) {
+    background-color: #DDDDDD;
+}
+.small {
+  font-size: 8px;
+}
+
+.left {
+  text-align: left;
+}
+
+.right {
+  text-align: right;
+}
+
+.center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .centered {
   text-align: center;
 }
@@ -66,3 +92,5 @@ p {
 .low-signal, .mixed-results {
   background-color: orange;
 }
+
+.pagebreak { page-break-before: always; }
