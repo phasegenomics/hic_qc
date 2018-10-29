@@ -375,12 +375,13 @@ class HiCQC(object):
         ax.add_patch(patch)
         plt.ylim(0, coord_max)
         plt.xlim(0, coord_max)
+        
         if non_dup_rate is not None:
             plt.title('{}\nproportion duplicated (sampled): {:.2f}\nproportion duplicated (extrapolated): {:.2f}'.format(
-                outfile, self.stats['observed_dup_rate'], 1-non_dup_rate))
+                self.paths['bamname'], self.stats['observed_dup_rate'], 1-non_dup_rate))
         else:
             plt.title('{}\nproportion duplicated (sampled): {:.2f}'.format(
-                outfile, self.stats['observed_dup_rate']))
+                self.paths['bamname'], self.stats['observed_dup_rate']))
         plt.xlabel('Total reads')
         plt.ylabel('Non-duplicate reads')
         plt.tight_layout()
