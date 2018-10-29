@@ -17,7 +17,6 @@ h1,
 h2,
 .h2 {
   font-size: 20px;
-<<<<<<< HEAD
 }
 
 h3, h4, h5, h6, p {
@@ -26,16 +25,6 @@ h3, h4, h5, h6, p {
   margin-right: 30px;
 }
 
-=======
-}
-
-h3, h4, h5, h6, p {
-  text-align: left;
-  margin-left: 30px;
-  margin-right: 30px;
-}
-
->>>>>>> master
 h3 {
   font-size: 16px;
 }
@@ -56,8 +45,6 @@ p {
   font-size: 14px;
 }
 
-<<<<<<< HEAD
-=======
 block_img {
   float: right;
   clear: left;
@@ -84,7 +71,6 @@ tr:nth-child(even) {
   margin-right: auto;
 }
 
->>>>>>> master
 .centered {
   text-align: center;
 }
@@ -93,21 +79,6 @@ tr:nth-child(even) {
   padding: 3px 6px;
   font-weight: bold;
   color: white;
-<<<<<<< HEAD
-}
-
-.pass {
-  background-color: green;
-}
-
-.fail {
-  background-color: red;
-}
-
-.low-signal, .mixed-results {
-  background-color: orange;
-}
-=======
 }
 
 .pass {
@@ -123,4 +94,3 @@ tr:nth-child(even) {
 }
 
 .pagebreak { page-break-before: always; }
->>>>>>> master
