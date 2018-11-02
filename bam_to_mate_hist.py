@@ -12,6 +12,7 @@
 from __future__ import print_function
 from __future__ import division
 
+from pbr import version
 import sys
 import pysam
 import numpy as np
@@ -25,6 +26,8 @@ import matplotlib.pyplot as plt
 import pdfkit
 import markdown as md
 from scipy import optimize
+
+__version__ = version.VersionInfo('bam_to_mate_hist').version_string()
 
 def saturation(x, V, K):
     '''Computes non-duplicate read count given x reads and parameters V and K.
@@ -569,11 +572,9 @@ class HiCQC(object):
                 self.out_stats[item] = os.path.abspath(self.paths[item])
 
         for key, (value, fmt) in self.other_stats.items():
-            try:
-                self.out_stats[key] = fmt.format(value)
-            except:
-                print(key, value, fmt)
-                sys.exit()
+            self.out_stats[key] = fmt.format(value)
+
+        self.out_stats['version'] = __version__
 
     def print_stats(self, count_diff_refname_stub=False):
         '''Print statistical summary to standard out.
@@ -720,7 +721,6 @@ class HiCQC(object):
 
         template_path = os.path.join(self.paths['script_dir'], "collateral", "HiC_QC_report_template.md")
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
-        commit_path = os.path.join(self.paths['script_dir'], "collateral", "commit_id")
 
         if not os.path.exists(template_path):
             UserWarning("Can't find markdown template at {}! Exitting...".format(
@@ -728,17 +728,9 @@ class HiCQC(object):
             )
             sys.exit(1)
 
-        if os.path.exists(commit_path):
-            with open(commit_path) as commit_file:
-                commit_id = commit_file.read().strip()
-        else:
-            commit_id = "unversioned"
-
-
         with open(template_path) as template_fh:
             template_string = template_fh.read()
-            sub_str = template_string.replace("COMMIT_VERSION", commit_id)  # versions report
-            sub_str = sub_str.format(**self.out_stats)  # splat the statistics and path into the markdown, render as html
+            sub_str = template_string.format(**self.out_stats)  # splat the statistics and path into the markdown, render as html
             html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
 
             # write out just html

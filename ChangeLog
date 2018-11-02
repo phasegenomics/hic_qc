@@ -1,0 +1,103 @@
+CHANGES
+=======
+
+* Change conda install instructions to use env.yml
+* Build from env.yml file
+* Undo 3.4 and 3.7 additions because travis broke on them
+* Add python 3.4 and 3.7 build tests, remove setup.sh from Readme and repo
+* Added pbr output files
+* Add pbr dependency
+* Switched to pbr for versioning
+* Initial commit for functional pbr versioning
+* Added .gitignore
+* Testing pbr
+* Switch to bam name in dup saturation plot
+* Removed git merge info from file
+* Merging from master
+* Added stats for high quality read pairs and made numerous aesthetic improvements
+* Class-based refactor (#15)
+* Added additional documentation, added outfile\_prefix to paths dict, changed histogram plotting routine to remove warning
+* Added additional documentation
+* Pulled Assembly stats into separate table, fixed some whitespace, switched fraction/proportion references to percentages
+* Set extrapolated dup rate to -1 if it fails, catch ZeroDivisionError, change fraction/proportion references to percentages
+* Incorporated changes from pretty\_report\_numbers branch including updates to report template md and css files
+* This is a class-based refactoring of bam\_to\_mate\_hist. It includes a number of additional features including:   - Detection of coordinate-sorted bam files (if labeled in header)   - Skipping of supplementary and secondary reads   - Counting of unmapped reads
+* Add Travis CI integration (#13)
+* Switch badge to be based off of master branch
+* Add Travis CI badge
+* Added missing scipy dependency
+* Fixing travis file (again)
+* Fixing travis file
+* Initial commit for setup.py
+* Initial commit for Travis CI
+* Minor indentation fix
+* Fixed issue with zero dist reads in log log plot
+* Added log-log plot, use basename for bamfile in histograms
+* Add default returns for V and K when exiting dupe saturation early
+* Add writing out of dists file, containing all distances in the histogram
+* Added V and K from dup saturation curve fitting to output tsv
+* Skip unneeded metadata
+* Fix leftover template call
+* Replace explicit dictionary printing
+* Updated README to reflect python3 support and suggest installation using conda
+* Added python 3 compatibility
+* updated requirements to give proper pysam version
+* Fixed documentation for make\_histograms
+* Fixed parse\_bam\_file doc line
+* Added line for Fraction of read pairs >10KB apart mapping to contigs >10Kbp
+* Added stats for proportion of reads mapping to contigs >10Kbp with >10Kbp insert size. Also added -1 option to parse all reads in bam file
+* Added test cases for num 10Kbp reads, num reads mapping to 10Kbp contigs
+* Updated tests to account for change to count dict, updated documentation in bam\_to\_mate\_hist.py
+* Switched from list to dict for isize to reduce memory usage
+* fixed a few bugs and edge cases arising from duplicate saturation curve estimation for the report. changed how reports are versioned as it was messing up HTML conversion. fixed some test cases
+* Additional merge. Added extra dup stats to tsv
+* Additional merge
+* Merged changes from duplicate plotting branch
+* fixing some stuff raised in review
+* Added duplication curve plotting
+* Added duplicate saturation curve plotting
+* added a pass/fail row to the table, along with logic to populate it based on stats
+* updates to readme to explain changes. added setup script to enable report version tracking. updates to report template to allow version tracking
+* some docstring changes
+* missed committing the testing changes, here they are
+* added mapq zero counts, fixed tests so they don't fail with refactoring changes, fixed md template to give all data
+* fixed pairs vs reads correction
+* adding some features requested to report, specifically assembly stats. along the way refactoring code to avoid extremely cumbersome methods
+* added \_\_init\_\_ file
+* added unit tests, collateral for tests, and fixed a couple of bugs emerging in testing
+* removed recommended read numbers as potentially confusing, fixed split read counting
+* fixed a histogram+num reads counting bug
+* fixed zero-distance counting issue
+* added support for num reads desired total, basic
+* last context manager add
+* response to code review
+* adding a little more information about duplicates in reporting
+* Added some info to template boilerplate. Also fixed duplicate counting bug in script
+* fixed the sam flag check for dupes (i think)
+* added duplicate read support. also added code to compute assembly n50s, but not currently used
+* cleaned up script a bit, packaged all of the stats handling and printing into a function to de-clutter \_\_main\_\_
+* update readme for qc reports
+* fixed plot path for embedding in report, a couple of minor report things
+* fixed CLI for making reports option
+* report now working, not beautiful. messed around with style etc. a lot
+* report now working, not beautiful. messed around with style etc. a lotwq
+* trying out making a pdf report. not quite working yet, had to take on a bunch of dependencies like wkhtmltopdf which i don't love, need to figure them out
+* added a few additional details to readme
+* added option to specify outfile path
+* Update Readme.md
+* added split read counting as a tracked heuristic of Hi-C lib QC
+* Updated readme to reflect split read reporting
+* added split read counting as a tracked heuristic of Hi-C lib QC
+* updated readme, added some examples and collateral dir
+* added functionality to do internal ABC QC, fixed minor bug in counting total number of reads
+* added functionality to do internal ABC QC, fixed minor bug in counting total number of reads
+* fixed y-axes to extend (almost) to zero on the bottom, and to print out more informative info on Hi-C lib quality
+* updated readme with interpretations
+* added counting of zero-distance mates as diagnostic to script
+* fixed matplotlib on ubuntu via ssh
+* updated readme to reflect clone/install command
+* added requirements file to ease installation
+* cleaned readme a little bit more
+* changed readme clone instructions to be accurate
+* initial commit
+* Initial commit
