@@ -1,9 +1,12 @@
 CHANGES
 =======
 
-v0.1
-----
-
+* Change conda install instructions to use env.yml
+* Build from env.yml file
+* Undo 3.4 and 3.7 additions because travis broke on them
+* Add python 3.4 and 3.7 build tests, remove setup.sh from Readme and repo
+* Added pbr output files
+* Add pbr dependency
 * Switched to pbr for versioning
 * Initial commit for functional pbr versioning
 * Added .gitignore
