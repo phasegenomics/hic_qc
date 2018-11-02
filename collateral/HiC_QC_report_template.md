@@ -103,5 +103,5 @@ A high percent of unmapped reads may indicate sequence is missing from the refer
 
 <br>
 <h4 class="centered">
-REPORT VERSION: COMMIT_VERSION
+REPORT VERSION: {version}
 </h4>
