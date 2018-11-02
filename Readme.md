@@ -9,7 +9,7 @@ The most informative Hi-C reads are the ones that are long-distance contacts, or
 Hi-C connectivity drops off in approximately a power-law with increasing linear sequence distance. Consequently, one expects Hi-C reads to follow a characteristic distribution, wherein there is a spike of many read pairs at distances close to zero, which drops off smoothly (in log space) with increasing distance. If there are odd spikes or discontinuities, or if there are few long-distance contacts, there may be a problem either with the library or the assembly.
 
 ## Dependencies
-* python2.7 or python3.6 (mostly tested using 2.7.10 and 3.6.5)
+* python 2.7 or python >3.4 (mostly tested using 2.7.10 and 3.6.5)
 * numpy
 * pysam
 * matplotlib
@@ -18,10 +18,6 @@ Hi-C connectivity drops off in approximately a power-law with increasing linear 
 * wkhtmltopdf (needs to be installed manually)
 
 For installation, run this statement in a terminal:
-
-`git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist && sh setup.sh`
-
-if that doesn't work, you can try to just install the requirements, which leaves out some details in the PDF report but otherwise is functionally equivalent.
 
 `git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist && pip install --user -r requirements.txt`
 
