@@ -30,7 +30,7 @@
 | Zero-distance RPs                                        | {perc_zero_dist_pairs}         | 0-20%                                        |
 | Zero map quality reads                                   | {perc_mapq0_reads}             | 0-10%                                        |
 | Duplicate reads**                                        | {perc_duplicate_reads}         | 0-10%                                        |
-| Duplicate reads (extrapolated)**                         | {extrapolated_dup_rate}        | 0-50%                               |
+| Duplicate reads (extrapolated)***                        | {extrapolated_dup_rate}        | 0-50%                               |
 | Unmapped reads                                           | {perc_unmapped_reads}          | 0-10%                               |
 | Subjective Hi-C library judgment                         | {judgment}                     | See Judgment           |
 </center>
