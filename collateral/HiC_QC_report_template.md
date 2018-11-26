@@ -43,7 +43,6 @@
 **If this quantity is zero, see duplicate read section below. If negative, there are too few reads sampled to estimate duplicates.<br>
 ***Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
 ****Usable reads must map to different CTGs >5KB with mapping quality >0.<br>
-<br>
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 </div>
 
