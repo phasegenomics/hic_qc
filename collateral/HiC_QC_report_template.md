@@ -10,8 +10,9 @@
 | BAM file                     | {bamname}             |
 | Assembly size                | {total_length}        |
 | Contig (CTG) N50             | {N50}                 |
-| CTGs                          | {contigs}             |
-| CTGs > 10KB                   | {contigs_greater_10k} |
+| CTGs                         | {contigs}             |
+| CTGs > 10KB                  | {contigs_greater_10k} |
+| CTGs > 5KB                   | {contigs_greater_5k}  |
 
 ## Library statistics
 
@@ -32,6 +33,8 @@
 | Duplicate reads**                                        | {perc_duplicate_reads}         | 0-10%                                        |
 | Duplicate reads (extrapolated)***                        | {extrapolated_dup_rate}        | 0-50%                               |
 | Unmapped reads                                           | {perc_unmapped_reads}          | 0-10%                               |
+| Proximo usable reads**** per CTG                         | {proximo_usable_rp_per_ctg_gt_5k} | >600 |
+| HQ Proximo usable reads**** per CTG                      | {proximo_usable_rp_hq_per_ctg_gt_5k} | >600 |
 | Subjective Hi-C library judgment                         | {judgment}                     | See Judgment           |
 </center>
 
@@ -39,6 +42,7 @@
 *High quality (HQ) read pairs have minimum mapping quality >= 20, maximum edit distance <= 5, and are not duplicates.<br>
 **If this quantity is zero, see duplicate read section below. If negative, there are too few reads sampled to estimate duplicates.<br>
 ***Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
+****Usable reads must map to different CTGs >5KB with mapping quality >0.<br>
 <br>
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 </div>

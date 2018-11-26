@@ -93,7 +93,9 @@ class HiCQC(object):
                                      'pairs_intracontig_hq',
                                      'pairs_on_same_strand_hq',
                                      'total_read_pairs',
-                                     'total_read_pairs_hq'
+                                     'total_read_pairs_hq',
+                                     'proximo_usable_rp',
+                                     'proximo_usable_rp_hq',
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
         self.to_percents =    {
@@ -112,6 +114,10 @@ class HiCQC(object):
                                'perc_hq_rp': ('total_read_pairs_hq', 'total_read_pairs'),
                                'perc_different_ref_stub_pairs': ('different_ref_stub_pairs', 'total_read_pairs'),
                                }
+        self.to_round = set([
+                             'proximo_usable_rp_per_ctg_gt_5k',
+                             'proximo_usable_rp_hq_per_ctg_gt_5k'
+                             ])
 
         self.convert_to_pairs = set(['unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
 
@@ -174,6 +180,7 @@ class HiCQC(object):
                 self.contig_len (int): the NXX (probably N50) of the assembly based on the header
                 self.total (int): the total length of the assembly
                 self.contigs_greater_10k (set(str)): The set of names of contigs with length > 10Kbp
+                self.contigs_greater_5k (set(str)): The set of names of contigs with length > 5Kbp
             Raises:
                 ValueError if header labels bamfile as coordinate sorted
         '''
@@ -186,6 +193,7 @@ class HiCQC(object):
 
         self.N50, self.total_length = calc_nxx(header)
         self.contigs_greater_10k = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > 10000])
+        self.contigs_greater_5k = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > 5000])
 
     def process_pair(self, a, b):
         '''Extract stats from a pair of reads.
@@ -210,6 +218,7 @@ class HiCQC(object):
         Args:
             read (pysam.AlignedSegment): read to extract stats from
         '''
+
         self.stats['total_reads'] += 1
         if read.is_unmapped:
             self.stats['unmapped_reads'] += 1
@@ -244,6 +253,12 @@ class HiCQC(object):
 
             if refa_stub != refb_stub:
                 self.stats['different_ref_stub_pairs'] += 1
+
+            if a.reference_name in self.contigs_greater_5k and b.reference_name in self.contigs_greater_5k:
+                if min(a.mapping_quality, b.mapping_quality) > 0 and not any([a.is_duplicate, b.is_duplicate]):
+                    self.stats['proximo_usable_rp'] += 1
+                if is_high_qual_pair:
+                    self.stats['proximo_usable_rp_hq'] += 1
 
         else:
             self.stats['total_pairs_on_same_contig'] += 1
@@ -285,6 +300,8 @@ class HiCQC(object):
         self.non_dup_array = np.array(self.non_dup_array)
         self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = self.stats['pairs_greater_10k_on_contigs_greater_10k'] / \
                                                                             self.stats['pairs_on_contigs_greater_10k']
+        self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
+        self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
 
     def plot_dup_saturation(self, target_x=100000000, min_sample=100000, target_y=None):
         '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
@@ -378,7 +395,7 @@ class HiCQC(object):
         ax.add_patch(patch)
         plt.ylim(0, coord_max)
         plt.xlim(0, coord_max)
-        
+
         if non_dup_rate is not None:
             plt.title('{}\nproportion duplicated (sampled): {:.2f}\nproportion duplicated (extrapolated): {:.2f}'.format(
                 self.paths['bamname'], self.stats['observed_dup_rate'], 1-non_dup_rate))
@@ -526,6 +543,7 @@ class HiCQC(object):
 
         Uses:
             self.to_percents ({str: (int, int)}): Mapping of keys to numerator, denominator pair for conversion to percents.
+            self.to_round (set(str)): Set of keys from stats dict to round.
             self.convert_to_pairs (set(str)): Set of keys from stats dict that represent per read statistics.
             self.per_pair_metrics (set(str)): Set of keys from stats dict that represent per read pair statistics.
             self.paths ({str: str}): Mapping of names to paths.
@@ -546,6 +564,7 @@ class HiCQC(object):
                             'N50': (self.N50, '{:,}'),
                             'contigs': (len(self.refs), '{:,}'),
                             'contigs_greater_10k': (len(self.contigs_greater_10k), '{:,}'),
+                            'contigs_greater_5k': (len(self.contigs_greater_5k), '{:,}'),
                             'total_length': (self.total_length, '{:,}'),
                             'total_reads': (self.stats['total_reads'], '{:,}'),
                             'target_read_total': (self.stats['target_read_total'], '{:,}'),
@@ -558,6 +577,9 @@ class HiCQC(object):
                 self.out_stats[key] = '{:.2f}%'.format((self.stats[num] / self.stats[denom]) * 100)
             except ZeroDivisionError as e:
                 self.out_stats[key] = 'NaN'
+
+        for key in self.to_round:
+            self.out_stats[key] = '{:.2f}'.format(self.stats[key])
 
         for item in self.convert_to_pairs:
             self.out_stats[item] = '{:,}'.format(self.stats[item] // 2)
