@@ -105,6 +105,7 @@ class HiCQC(object):
                                'perc_pairs_on_same_strand_hq': ('pairs_on_same_strand_hq', 'pairs_intracontig_hq'),
                                'perc_intercontig_pairs': ('intercontig_pairs', 'total_read_pairs'),
                                'perc_intercontig_pairs_hq': ('intercontig_pairs_hq', 'total_read_pairs_hq'),
+                               'perc_intercontig_pairs_hq_gt10kbp': ('pairs_intercontig_hq_gt10kbp', 'total_read_pairs_hq'),
                                'perc_split_reads': ('split_reads', 'total_reads'),
                                'perc_duplicate_reads': ('duplicate_reads', 'total_reads'),
                                'perc_mapq0_reads': ('mapq0_reads', 'total_reads'),
@@ -238,6 +239,8 @@ class HiCQC(object):
 
             if is_high_qual_pair:
                 self.stats['intercontig_pairs_hq'] += 1
+                if a.reference_name in self.contigs_greater_10k and b.reference_name in self.contigs_greater_10k:
+                    self.stats['pairs_intercontig_hq_gt10kbp'] += 1
 
             refa_stub = a.reference_name.split('.')[0]
             refb_stub = b.reference_name.split('.')[0]
@@ -495,13 +498,13 @@ class HiCQC(object):
             self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
-        long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.05
+        long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
         long_floor = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
         useful_contacts = self.stats['intercontig_pairs_hq'] / self.stats['total_read_pairs_hq'] > 0.1
         low_contiguity = self.N50 < 100000
-        many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.1
+        many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.4
         many_many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.2
-        high_dupe = (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.05 and self.stats['total_read_pairs'] <= 1e6) \
+        high_dupe = (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.1 and self.stats['total_read_pairs'] <= 1e6) \
                     or (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.3 and self.stats['total_read_pairs'] <= 1e8)
 
         #print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe

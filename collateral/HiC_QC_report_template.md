@@ -24,6 +24,7 @@
 | HQ RPs >10KB apart (CTGs >10KB)                          | {perc_pairs_intra_hq_gt10kbp} | 1-15%                                  |
 | Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
 | Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
+| Intercontig HQ RPs (CTGs >10KB)                 | {perc_intercontig_pairs_hq_gt10kbp}       | 10-60% (contigs) 1-20% (chromosomes)      |
 | Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
 | Same strand HQ RPs                                       | {perc_pairs_on_same_strand_hq}    | 2-50%                          |
 | Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
