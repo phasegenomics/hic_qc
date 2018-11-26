@@ -20,33 +20,45 @@
 | :-----------                                             | -----------------:| --------------------:|
 | Total read pairs (RPs) analyzed                          | {total_read_pairs}             | N/A                                           |
 | High quality (HQ)* RPs                                   | {perc_hq_rp}                   | N/A                                           |
-| RPs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                                    |
-| RPs >10KB apart (CTGs >10KB)                             | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%                                   |
-| HQ RPs >10KB apart (CTGs >10KB)                          | {perc_pairs_intra_hq_gt10kbp} | 1-15%                                  |
-| Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
-| Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
-| Intercontig HQ RPs (CTGs >10KB)                          | {perc_intercontig_pairs_hq_gt10kbp}       | 10-60% (contigs) 1-20% (chromosomes)      |
-| Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
+| HQ RPs >10KB apart<br>(CTGs >10KB)                       | {perc_pairs_intra_hq_gt10kbp} | 1-15%                                  |
+| Intercontig HQ RPs<br>(CTGs >10KB)                       | {perc_intercontig_pairs_hq_gt10kbp} | 10-60% (contigs) 1-20% (chromosomes)      |
 | Same strand HQ RPs                                       | {perc_pairs_on_same_strand_hq}    | 2-50%                          |
-| Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
-| Zero-distance RPs                                        | {perc_zero_dist_pairs}         | 0-20%                                        |
-| Zero map quality reads                                   | {perc_mapq0_reads}             | 0-10%                                        |
+| Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries)<br>30%+ (other libraries) |
 | Duplicate reads**                                        | {perc_duplicate_reads}         | 0-10%                                        |
-| Duplicate reads (extrapolated)***                        | {extrapolated_dup_rate}        | 0-50%                               |
 | Unmapped reads                                           | {perc_unmapped_reads}          | 0-10%                               |
-| Proximo usable reads**** per CTG                         | {proximo_usable_rp_per_ctg_gt_5k} | >600 |
-| HQ Proximo usable reads**** per CTG                      | {proximo_usable_rp_hq_per_ctg_gt_5k} | >600 |
+| Proximo usable reads*** per CTG                          | {proximo_usable_rp_per_ctg_gt_5k} | >600 |
+| HQ Proximo usable reads*** per CTG                       | {proximo_usable_rp_hq_per_ctg_gt_5k} | >600 |
 | Subjective Hi-C library judgment                         | {judgment}                     | See Judgment           |
 </center>
 
 <div class="small left">
 *High quality (HQ) read pairs have minimum mapping quality >= 20, maximum edit distance <= 5, and are not duplicates.<br>
 **If this quantity is zero, see duplicate read section below. If negative, there are too few reads sampled to estimate duplicates.<br>
-***Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
-****Usable reads must map to different CTGs >5KB with mapping quality >0.<br>
-See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
+***Usable reads must map to different CTGs >5KB with mapping quality >0.<br>
+<br>
+See "alignment distance statistics and plots" section for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 </div>
 
+<div class="pagebreak"> </div>
+
+## Library statistics (extended)
+<center>
+
+| Label                                                    | Library statistics             | Expected values                               |
+| :-----------                                             | --------------------:| --------------------:|
+| RPs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                     |
+| RPs >10KB apart (CTGs >10KB)                             | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%    |
+| Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
+| Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
+| Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
+| Zero-distance RPs                                        | {perc_zero_dist_pairs}         | 0-20%                                        |
+| Zero map quality reads                                   | {perc_mapq0_reads}             | 0-10%                                        |
+| Duplicate reads (extrapolated)****                          | {extrapolated_dup_rate}        | 0-50%                               |
+</center>
+
+<div class="small left">
+****Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
+</div>
 <div class="pagebreak"> </div>
 
 ## Aligned mate distance histograms
