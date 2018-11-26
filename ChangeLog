@@ -1,16 +1,9 @@
 CHANGES
 =======
 
-* Change conda install instructions to use env.yml
-* Build from env.yml file
-* Undo 3.4 and 3.7 additions because travis broke on them
-* Add python 3.4 and 3.7 build tests, remove setup.sh from Readme and repo
-* Added pbr output files
-* Add pbr dependency
-* Switched to pbr for versioning
-* Initial commit for functional pbr versioning
-* Added .gitignore
-* Testing pbr
+* Update HQ RP >10kbp threshold based on review comments
+* Adjust QC thresholds to reflect empirical data and add an additional QC metric for intercontig HQ RPs spanning contigs >10kbp
+* Add pbr versioning (#18)
 * Switch to bam name in dup saturation plot
 * Removed git merge info from file
 * Merging from master
