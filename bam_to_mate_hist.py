@@ -498,7 +498,7 @@ class HiCQC(object):
             self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
-        long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.05
+        long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
         long_floor = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
         useful_contacts = self.stats['intercontig_pairs_hq'] / self.stats['total_read_pairs_hq'] > 0.1
         low_contiguity = self.N50 < 100000
