@@ -326,6 +326,17 @@ class HiCQC(object):
                 self.update_rp_array(a, b)
 
     def update_rp_array(self, a, b):
+        '''Update nested dict of mapping stats based on current read pair a, b.
+
+        Uses:
+            self.rp_stats (list(int)): List of minimum insert sizes sorted from low to high
+            self.mq_stats (list(int)): List of minimum mapq values sorted from low to high
+            self.edist_stats (list(int)): List of maximum edit distances sorted from high to low
+
+        Modifies:
+            self.mapping_dict (dict(int-->dict(int-->dict(int-->int)))): Nested dict with min_size, mapq, and edist keys
+                                                                         and read pair counts as the inner values.
+        '''
         mq = min(a.mapping_quality, b.mapping_quality)
         isize = abs(a.reference_start - b.reference_start)
         edist = max(a.get_tag('NM'), b.get_tag('NM'))
