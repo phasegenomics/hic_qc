@@ -1,6 +1,9 @@
 CHANGES
 =======
 
+* Write contigs\_greater stats to main stats dict
+* Added code to collect intracontig mapping stats at various mapq, edist, and isize combinations
+* Updated changelog
 * Split report table into important and extended stats
 * Removed break tag
 * Re-added intercontig >10kbp stat

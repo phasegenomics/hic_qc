@@ -19,7 +19,7 @@ import numpy as np
 import argparse
 import os
 import matplotlib
-from collections import Counter, OrderedDict
+from collections import Counter
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
