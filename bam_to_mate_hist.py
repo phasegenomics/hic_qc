@@ -228,7 +228,6 @@ class HiCQC(object):
         self.contigs_greater = {}
 
         if self.mapping_dict is not None:
-            self.contigs_dict = {}
             for min_size in self.mapping_dict.keys():
                 self.contigs_greater[min_size] = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > min_size])
 
@@ -662,6 +661,10 @@ class HiCQC(object):
                 self.out_stats[item] = self.paths[item]
             else:
                 self.out_stats[item] = os.path.abspath(self.paths[item])
+
+        for key, value in self.contigs_greater.items():
+            key_str = 'contigs_greater_{:.0f}k'.format(key / 1000)
+            self.out_stats[key_str] = '{:,}'.format(len(value))
 
         for key, (value, fmt) in self.other_stats.items():
             self.out_stats[key] = fmt.format(value)
