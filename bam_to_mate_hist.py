@@ -76,7 +76,7 @@ class HiCQC(object):
     to create plots, print results, save tables, and create pdf reports.
     '''
 
-    def __init__(self, outfile_prefix='Read_mate_dist'):
+    def __init__(self, outfile_prefix='Read_mate_dist', rp_stats=None, mq_stats=None, edist_stats=None):
         '''Initialize metrics for later extraction and conversion.
         '''
         self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
@@ -131,6 +131,29 @@ class HiCQC(object):
         self.total_array = []
         self.non_dup_array = []
 
+        if rp_stats is not None and mq_stats is not None and edist_stats is not None:
+            rps = []
+            mqs = []
+            edists = []
+            self.mapping_dict = {}
+            rp_stats = sorted(map(lambda x: int(1000 * x), rp_stats))
+            mq_stats = sorted(map(int, mq_stats))
+            edist_stats = list(reversed(sorted(map(int, edist_stats))))
+
+            for rp in rp_stats:
+                self.mapping_dict[rp] = {}
+                for mq in mq_stats:
+                    self.mapping_dict[rp][mq] = {}
+                    for ed in edist_stats:
+                        self.mapping_dict[rp][mq][ed] = 0
+            self.rp_stats = rp_stats
+            self.mq_stats = mq_stats
+            self.edist_stats = edist_stats
+
+        else:
+            self.mapping_dict = None
+            self.rp_array = None
+
     def parse_bam(self, bamfile, max_read_pairs=-1):
         '''Extract QC metrics from a specified bam file. It requires a read name sorted bam file.
         By default, it will parse all reads in the bam file, but a limit can be specified by max_read_pairs.
@@ -176,12 +199,18 @@ class HiCQC(object):
                 header (pysam.AlignmentFile.header): the header from which to extract reference sequence lengths
                 xx (float): the XX of NXX. we assume it is N50 so the default is 50
 
+            Uses:
+                self.mapping_dict (dict(int-->dict(int-->dict(int-->int)))): Nested dict with min_size, mapq, and edist keys
+                                                                             and read pair counts as the inner values.
+
             Sets:
                 self.refs dict(int-->str): ref_id --> ref_name mappings for the assembly
                 self.contig_len (int): the NXX (probably N50) of the assembly based on the header
                 self.total (int): the total length of the assembly
                 self.contigs_greater_10k (set(str)): The set of names of contigs with length > 10Kbp
                 self.contigs_greater_5k (set(str)): The set of names of contigs with length > 5Kbp
+                self.contigs_greater (dict(int-->set(str))): Dictionary with minimum lengths as keys and sets of contigs as values
+
             Raises:
                 ValueError if header labels bamfile as coordinate sorted
         '''
@@ -195,6 +224,12 @@ class HiCQC(object):
         self.N50, self.total_length = calc_nxx(header)
         self.contigs_greater_10k = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > 10000])
         self.contigs_greater_5k = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > 5000])
+
+        self.contigs_greater = {}
+
+        if self.mapping_dict is not None:
+            for min_size in self.mapping_dict.keys():
+                self.contigs_greater[min_size] = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > min_size])
 
     def process_pair(self, a, b):
         '''Extract stats from a pair of reads.
@@ -286,8 +321,38 @@ class HiCQC(object):
                 if dist > 10000:
                     self.stats['pairs_greater_10k_on_contigs_greater_10k'] += 1
 
+            if self.mapping_dict is not None and \
+               not (a.is_duplicate or b.is_duplicate):
+                self.update_rp_array(a, b)
+
+    def update_rp_array(self, a, b):
+        '''Update nested dict of mapping stats based on current read pair a, b.
+
+        Uses:
+            self.rp_stats (list(int)): List of minimum insert sizes sorted from low to high
+            self.mq_stats (list(int)): List of minimum mapq values sorted from low to high
+            self.edist_stats (list(int)): List of maximum edit distances sorted from high to low
+
+        Modifies:
+            self.mapping_dict (dict(int-->dict(int-->dict(int-->int)))): Nested dict with min_size, mapq, and edist keys
+                                                                         and read pair counts as the inner values.
+        '''
+        mq = min(a.mapping_quality, b.mapping_quality)
+        isize = abs(a.reference_start - b.reference_start)
+        edist = max(a.get_tag('NM'), b.get_tag('NM'))
+
+        for min_size in self.rp_stats:
+            if isize >= min_size:
+                for mapq in self.mq_stats:
+                    if mq >= mapq:
+                        for ed in self.edist_stats:
+                            if edist <= ed:
+                                self.mapping_dict[min_size][mapq][ed] += 1
+
     def is_high_qual_pair(self, a, b):
-        return min(a.mapping_quality, b.mapping_quality) >= 20 and max(a.get_tag('NM'), b.get_tag('NM') <= 5) and not a.is_duplicate and not b.is_duplicate
+        return min(a.mapping_quality, b.mapping_quality) >= 20 and \
+               max(a.get_tag('NM'), b.get_tag('NM') <= 5) and \
+               not a.is_duplicate and not b.is_duplicate
 
     def update_dup_stats(self):
         '''Update lists of duplication statistics.
@@ -305,6 +370,18 @@ class HiCQC(object):
                                                                             self.stats['pairs_on_contigs_greater_10k']
         self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
         self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
+
+        if self.mapping_dict is not None:
+            self.write_mapping_stats()
+
+    def write_mapping_stats(self):
+        with open('{}.mapping_stats.tsv'.format(self.paths['outfile_prefix']), 'w') as outfile:
+            print('edist', 'mapq', 'min_size', 'count', sep='\t', file=outfile)
+            for min_size in self.rp_stats:
+                for mapq in self.mq_stats:
+                    for ed in self.edist_stats:
+                        count = self.mapping_dict[min_size][mapq][ed]
+                        print(ed, mapq, min_size, count, sep='\t', file=outfile)
 
     def plot_dup_saturation(self, target_x=100000000, min_sample=100000, target_y=None):
         '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
@@ -596,6 +673,10 @@ class HiCQC(object):
             else:
                 self.out_stats[item] = os.path.abspath(self.paths[item])
 
+        for key, value in self.contigs_greater.items():
+            key_str = 'contigs_greater_{:.0f}k'.format(key / 1000)
+            self.out_stats[key_str] = '{:,}'.format(len(value))
+
         for key, (value, fmt) in self.other_stats.items():
             self.out_stats[key] = fmt.format(value)
 
@@ -787,6 +868,9 @@ def parse_args():
                         help='Whether to export results in a PDF report. Requires that the QC script be' \
                              'in the same directory as the QC repo\'s collateral directory. Default: False.')
     parser.add_argument('--target_read_total', type=int, default=100000000, help='Total read count for duplicate read extrapolation (Default: %(default)s)')
+    parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50], help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
+    parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40], help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
+    parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0], help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
 
     args = parser.parse_args()
 
@@ -806,7 +890,7 @@ if __name__ == "__main__":
     if dirname != '' and not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    QC = HiCQC(outfile_prefix=args.outfile_prefix)
+    QC = HiCQC(outfile_prefix=args.outfile_prefix, rp_stats=args.rp_stats, mq_stats=args.mq_stats, edist_stats=args.edist_stats)
     if args.num_reads != -1:
         print('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
     else:
