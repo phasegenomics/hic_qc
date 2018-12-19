@@ -366,16 +366,16 @@ class HiCQC(object):
         '''
         self.total_array = np.array(self.total_array)
         self.non_dup_array = np.array(self.non_dup_array)
-        try:
+        if self.stats['pairs_on_contigs_greater_10k'] > 0:
             self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = self.stats['pairs_greater_10k_on_contigs_greater_10k'] / \
                                                                             self.stats['pairs_on_contigs_greater_10k']
-        except ZeroDivisionError as e:
+        else:
             self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = 0
 
-        try:
+        if len(self.contigs_greater_5k) > 0:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
-        except ZeroDivisionError as e:
+        else:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = 0
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 0
 
