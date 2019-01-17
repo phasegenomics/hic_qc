@@ -1,6 +1,7 @@
 CHANGES
 =======
 
+* Add library sufficiency metrics
 * Update HQ RP >10kbp threshold based on review comments
 * Adjust QC thresholds to reflect empirical data and add an additional QC metric for intercontig HQ RPs spanning contigs >10kbp
 * Add pbr versioning (#18)
