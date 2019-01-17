@@ -1,6 +1,13 @@
 CHANGES
 =======
 
+* Write contigs\_greater stats to main stats dict
+* Added code to collect intracontig mapping stats at various mapq, edist, and isize combinations
+* Split report table into important and extended stats
+* Removed break tag
+* Re-added intercontig >10kbp stat
+* Remove whitespace in report to fix orphaned footer
+* Add library sufficiency metrics
 * Update HQ RP >10kbp threshold based on review comments
 * Adjust QC thresholds to reflect empirical data and add an additional QC metric for intercontig HQ RPs spanning contigs >10kbp
 * Add pbr versioning (#18)
