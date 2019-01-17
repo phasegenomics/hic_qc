@@ -1,6 +1,11 @@
 CHANGES
 =======
 
+* Fix merge issue, first attempt to add git ID
+* Handle cases where there are too few reads. (#24)
+* Update Readme.md (#23)
+* Collect additional mapping stats and output to separate table (#22)
+* Library Sufficiency and Report update (#21)
 * Add library sufficiency metrics
 * Update HQ RP >10kbp threshold based on review comments
 * Adjust QC thresholds to reflect empirical data and add an additional QC metric for intercontig HQ RPs spanning contigs >10kbp
