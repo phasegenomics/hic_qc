@@ -4,4 +4,4 @@ numpy==1.13.3
 scipy==1.1.0
 pdfkit==0.6.1
 markdown==2.6.11
-pbr==4.0.3
+versioneer==0.18

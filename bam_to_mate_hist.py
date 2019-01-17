@@ -12,7 +12,6 @@
 from __future__ import print_function
 from __future__ import division
 
-from pbr import version
 import sys
 import pysam
 import numpy as np
@@ -20,14 +19,14 @@ import argparse
 import os
 import matplotlib
 from collections import Counter
-
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pdfkit
 import markdown as md
 from scipy import optimize
 
-__version__ = version.VersionInfo('bam_to_mate_hist').version_string()
+from _version import get_versions
+__version__ = get_versions()['version']
 
 def saturation(x, V, K):
     '''Computes non-duplicate read count given x reads and parameters V and K.
@@ -333,7 +332,7 @@ class HiCQC(object):
             self.mq_stats (list(int)): List of minimum mapq values sorted from low to high
             self.edist_stats (list(int)): List of maximum edit distances sorted from high to low
 
-        Updates:
+        Modifies:
             self.mapping_dict (dict(int-->dict(int-->dict(int-->int)))): Nested dict with min_size, mapq, and edist keys
                                                                          and read pair counts as the inner values.
         '''
@@ -366,10 +365,30 @@ class HiCQC(object):
         '''
         self.total_array = np.array(self.total_array)
         self.non_dup_array = np.array(self.non_dup_array)
-        self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = self.stats['pairs_greater_10k_on_contigs_greater_10k'] / \
+        if self.stats['pairs_on_contigs_greater_10k'] > 0:
+            self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = self.stats['pairs_greater_10k_on_contigs_greater_10k'] / \
                                                                             self.stats['pairs_on_contigs_greater_10k']
-        self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
-        self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
+        else:
+            self.stats['proportion_pairs_greater_10k_on_contigs_greater_10k'] = 0
+
+        if len(self.contigs_greater_5k) > 0:
+            self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
+        else:
+            self.stats['proximo_usable_rp_per_ctg_gt_5k'] = 0
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 0
+
+        if self.mapping_dict is not None:
+            self.write_mapping_stats()
+
+    def write_mapping_stats(self):
+        with open('{}.mapping_stats.tsv'.format(self.paths['outfile_prefix']), 'w') as outfile:
+            print('edist', 'mapq', 'min_size', 'count', sep='\t', file=outfile)
+            for min_size in self.rp_stats:
+                for mapq in self.mq_stats:
+                    for ed in self.edist_stats:
+                        count = self.mapping_dict[min_size][mapq][ed]
+                        print(ed, mapq, min_size, count, sep='\t', file=outfile)
 
         if self.mapping_dict is not None:
             self.write_mapping_stats()
@@ -507,55 +526,72 @@ class HiCQC(object):
         num_pairs = self.stats['total_read_pairs']
         title_string = '\nMate distance distribution for first {} read pairs for sample\n{}'.format(num_pairs,
                                                                                                     self.paths['bamname'])
-        fig1, ax = plt.subplots(1)
-        plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=50)
+        key_len = len(self.dists)
 
-        ax.set_ylim(0.5, num_dists * 2)
-        plt.yscale('log', nonposy='clip')
-        plt.title(title_string)
-        plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
-        plt.ylabel('Number of reads')
         long_hist_path = self.paths['outfile_prefix'] + '_long.png'
+        fig1, ax = plt.subplots(1)
+        if key_len > 0:
+            plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=50)
+
+            ax.set_ylim(0.5, max(num_dists * 2, 1))
+            plt.yscale('log', nonposy='clip')
+            plt.title(title_string)
+            plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
+            plt.ylabel('Number of reads')
+        else:
+            plt.title('Warning: No read pair distribution to plot')
         fig1.savefig(long_hist_path)
         plt.close(fig1)
         self.paths['long_hist'] = long_hist_path
 
         fig2, ax = plt.subplots(1)
-        plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=range(0, 20000, 500))
-        ax.set_xlim(0, 20000)
-        ax.set_ylim(0.5, num_pairs * 2)
-        plt.yscale('log', nonposy='clip')
-        plt.title(title_string)
-        plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
-        plt.ylabel('Number of reads')
         short_hist_path = self.paths['outfile_prefix'] + '_short.png'
+
+        if key_len > 0:
+            plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=range(0, 20000, 500))
+            ax.set_xlim(0, 20000)
+            ax.set_ylim(0.5, num_pairs * 2)
+            plt.yscale('log', nonposy='clip')
+            plt.title(title_string)
+            plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
+            plt.ylabel('Number of reads')
+        else:
+            plt.title('Warning: No read pair distribution to plot')
         fig2.savefig(short_hist_path)
         plt.close(fig2)
         self.paths['short_hist'] = short_hist_path
 
         fig3, ax = plt.subplots(1)
+        log_log_hist_path = self.paths['outfile_prefix'] + '_log_log.png'
+
         offset_dists = {}
         for key, value in self.dists.items():
             offset_dists[key+1] = value
-        min_dist = min(offset_dists.keys())
-        max_dist = max(offset_dists.keys())
-        plt.hist(list(offset_dists.keys()),
-                 weights=list(offset_dists.values()),
-                 bins=np.logspace(np.log10(min_dist),
-                                  np.log10(max_dist),
-                                  50),
-                 log=True)
-        ax.set_ylim(0.5, num_pairs * 2)
-        plt.yscale('log', nonposy='clip')
-        plt.xscale('log')
-        plt.xlim(xmin=1)
-        plt.title(title_string)
-        plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
-        plt.ylabel('Number of reads (log scale)')
-        plt.tight_layout()
-        log_log_hist_path = self.paths['outfile_prefix'] + '_log_log.png'
+
+        if key_len > 0:
+            min_dist = min(self.dists.keys())
+            max_dist = max(self.dists.keys())
+
+            plt.hist(list(offset_dists.keys()),
+                     weights=list(offset_dists.values()),
+                     bins=np.logspace(np.log10(min_dist),
+                                      np.log10(max_dist),
+                                      50),
+                     log=True)
+            ax.set_ylim(0.5, max(num_pairs * 2, 1))
+            plt.yscale('log', nonposy='clip')
+            plt.xscale('log')
+            plt.xlim(xmin=1)
+            plt.title(title_string)
+            plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
+            plt.ylabel('Number of reads (log scale)')
+            plt.tight_layout()
+        else:
+            plt.title('Warning: No read pair distribution to plot')
+
         fig3.savefig(log_log_hist_path)
         plt.close(fig3)
+
         self.paths['log_log_hist'] = log_log_hist_path
 
     def html_from_judgement(self):
@@ -592,14 +628,23 @@ class HiCQC(object):
             self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
-        long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
-        long_floor = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
-        useful_contacts = self.stats['intercontig_pairs_hq'] / self.stats['total_read_pairs_hq'] > 0.1
+        if self.stats['total_read_pairs_hq'] > 0:
+            long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
+            long_floor = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
+            useful_contacts = self.stats['intercontig_pairs_hq'] / self.stats['total_read_pairs_hq'] > 0.1
+            many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.4
+            many_many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.2
+            high_dupe = (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.1 and self.stats['total_read_pairs'] <= 1e6) \
+                        or (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.3 and self.stats['total_read_pairs'] <= 1e8)
+        else:
+            long_contacts = False
+            long_floor = False
+            useful_contacts = False
+            many_zero_pairs = False
+            many_many_zero_pairs = False
+            high_dupe = False
+
         low_contiguity = self.N50 < 100000
-        many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.4
-        many_many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.2
-        high_dupe = (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.1 and self.stats['total_read_pairs'] <= 1e6) \
-                    or (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.3 and self.stats['total_read_pairs'] <= 1e8)
 
         #print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
         if (long_contacts or useful_contacts) and (low_contiguity or long_floor):
@@ -871,6 +916,7 @@ def parse_args():
     parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50], help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40], help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0], help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
+    parser.add_argument('--version', action='version', version=__version__)
 
     args = parser.parse_args()
 
