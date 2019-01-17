@@ -333,7 +333,7 @@ class HiCQC(object):
             self.mq_stats (list(int)): List of minimum mapq values sorted from low to high
             self.edist_stats (list(int)): List of maximum edit distances sorted from high to low
 
-        Modifies:
+        Updates:
             self.mapping_dict (dict(int-->dict(int-->dict(int-->int)))): Nested dict with min_size, mapq, and edist keys
                                                                          and read pair counts as the inner values.
         '''
