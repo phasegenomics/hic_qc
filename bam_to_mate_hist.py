@@ -12,7 +12,6 @@
 from __future__ import print_function
 from __future__ import division
 
-from pbr import version
 import sys
 import pysam
 import numpy as np
@@ -20,14 +19,14 @@ import argparse
 import os
 import matplotlib
 from collections import Counter
-
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pdfkit
 import markdown as md
 from scipy import optimize
 
-__version__ = version.VersionInfo('bam_to_mate_hist').version_string()
+from _version import get_versions
+__version__ = get_versions()['version']
 
 def saturation(x, V, K):
     '''Computes non-duplicate read count given x reads and parameters V and K.
@@ -391,6 +390,18 @@ class HiCQC(object):
                         count = self.mapping_dict[min_size][mapq][ed]
                         print(ed, mapq, min_size, count, sep='\t', file=outfile)
 
+        if self.mapping_dict is not None:
+            self.write_mapping_stats()
+
+    def write_mapping_stats(self):
+        with open('{}.mapping_stats.tsv'.format(self.paths['outfile_prefix']), 'w') as outfile:
+            print('edist', 'mapq', 'min_size', 'count', sep='\t', file=outfile)
+            for min_size in self.rp_stats:
+                for mapq in self.mq_stats:
+                    for ed in self.edist_stats:
+                        count = self.mapping_dict[min_size][mapq][ed]
+                        print(ed, mapq, min_size, count, sep='\t', file=outfile)
+
     def plot_dup_saturation(self, target_x=100000000, min_sample=100000, target_y=None):
         '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
 
@@ -560,7 +571,7 @@ class HiCQC(object):
         if key_len > 0:
             min_dist = min(self.dists.keys())
             max_dist = max(self.dists.keys())
-        
+
             plt.hist(list(offset_dists.keys()),
                      weights=list(offset_dists.values()),
                      bins=np.logspace(np.log10(min_dist),
@@ -905,6 +916,7 @@ def parse_args():
     parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50], help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40], help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0], help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
+    parser.add_argument('--version', action='version', version=__version__)
 
     args = parser.parse_args()
 

@@ -1,2 +1,4 @@
 *.pyc
 Read_mate_dist*
+bam_to_mate_hist.egg-info/
+dist/
