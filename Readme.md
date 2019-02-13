@@ -2,7 +2,7 @@
 
 # `bam_to_mate_hist.py` readme.
 
-This script is intended as a simple QC method for Hi-C libraries, based on reads in a BAM file aligned to some genome/assembly. 
+This script is intended as a simple QC method for Hi-C libraries, based on reads in a BAM file aligned to some genome/assembly. For our full recommendations on aligning and QC'ing Hi-C data, please [see here](https://phasegenomics.github.io/2019/09/19/hic-alignment-and-qc.html).
 
 The most informative Hi-C reads are the ones that are long-distance contacts, or contacts between contigs of an assembly. This tool quantifies such contacts and makes plots of contact distance distributions. The most successful Hi-C libraries have many long-distance and among-contig contacts.
 
