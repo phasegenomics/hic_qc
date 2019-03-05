@@ -574,7 +574,7 @@ class HiCQC(object):
 
             plt.hist(list(offset_dists.keys()),
                      weights=list(offset_dists.values()),
-                     bins=np.logspace(np.log10(min_dist),
+                     bins=np.logspace(np.log10(min_dist+1),
                                       np.log10(max_dist),
                                       50),
                      log=True)
