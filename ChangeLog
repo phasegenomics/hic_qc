@@ -1,7 +1,6 @@
 CHANGES
 =======
 
-* Fix merge issue, first attempt to add git ID
 * Handle cases where there are too few reads. (#24)
 * Update Readme.md (#23)
 * Collect additional mapping stats and output to separate table (#22)

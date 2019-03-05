@@ -387,6 +387,18 @@ class HiCQC(object):
                         count = self.mapping_dict[min_size][mapq][ed]
                         print(ed, mapq, min_size, count, sep='\t', file=outfile)
 
+        if self.mapping_dict is not None:
+            self.write_mapping_stats()
+
+    def write_mapping_stats(self):
+        with open('{}.mapping_stats.tsv'.format(self.paths['outfile_prefix']), 'w') as outfile:
+            print('edist', 'mapq', 'min_size', 'count', sep='\t', file=outfile)
+            for min_size in self.rp_stats:
+                for mapq in self.mq_stats:
+                    for ed in self.edist_stats:
+                        count = self.mapping_dict[min_size][mapq][ed]
+                        print(ed, mapq, min_size, count, sep='\t', file=outfile)
+
     def plot_dup_saturation(self, target_x=100000000, min_sample=100000, target_y=None):
         '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
 
