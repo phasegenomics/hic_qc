@@ -29,7 +29,8 @@ Some dependencies such as matplotlib don't play nicely with all pythons, such th
 
 ### Conda installation
 We have also successfully installed requirements using the following conda command (replace X and Y with desired python version):
-`conda create -n bam_to_mate_hist --file env.yml python=X.Y`
+
+`conda env create -n bam_to_mate_hist --file env.yml python=X.Y`
 
 This will automatically install the `wkhtmltopdf` dependency.
 
