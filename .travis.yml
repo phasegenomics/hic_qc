@@ -22,6 +22,7 @@ install:
   # Replace dep1 dep2 ... with your dependencies
   - conda env create -q -n test-environment python=$TRAVIS_PYTHON_VERSION --file env.yml
   - source activate test-environment
+  - python --version
   - python setup.py install
 script:
   - python test_bam_to_mate_hist.py
