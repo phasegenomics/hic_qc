@@ -20,7 +20,7 @@ install:
   - conda info -a
 
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pysam numpy scipy matplotlib wkhtmltopdf pdfkit
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pysam numpy scipy matplotlib wkhtmltopdf pdfkit markdown
   - source activate test-environment
   - python --version
   - python setup.py install
