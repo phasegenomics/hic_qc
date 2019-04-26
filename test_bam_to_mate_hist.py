@@ -106,7 +106,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_python_version(self):
         if "TRAVIS_PYTHON_VERSION" in os.environ:
-            version_string = "{}.{}.{}".format(*sys.version_info)
+            version_string = "{}.{}".format(*sys.version_info)
             self.assertEqual(version_string, os.environ["TRAVIS_PYTHON_VERSION"])
         else:
             return True
