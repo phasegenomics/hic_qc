@@ -28,7 +28,7 @@ I've tested this script on MacOSX, Ubuntu Linux, and Amazon Linux.
 Some dependencies such as matplotlib don't play nicely with all pythons, such that some pythons in e.g. virtualenvs may not work. In that specific case you can just deactivate the virtualenv.
 
 ### Conda installation
-We have also successfully installed requirements using the following conda command (replace X and Y with desired python version):
+We have also successfully installed requirements using the following conda command:
 
 `conda env create -n bam_to_mate_hist --file env.yml`
 
