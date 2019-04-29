@@ -19,6 +19,8 @@ may not describe the contents of this file to any other party.
 from __future__ import print_function
 from __future__ import division
 
+import os
+import sys
 import unittest
 import bam_to_mate_hist as b2mh
 import pysam
@@ -102,6 +104,12 @@ class MyTestCase(unittest.TestCase):
         QCtmp.update_read_stats(self.example_read)
         self.assertEqual(QCtmp.stats['split_reads'], 1)
 
+    def test_python_version(self):
+        if "TRAVIS_PYTHON_VERSION" in os.environ:
+            version_string = "{}.{}".format(*sys.version_info)
+            self.assertEqual(version_string, os.environ["TRAVIS_PYTHON_VERSION"])
+        else:
+            return True
 
 if __name__ == '__main__':
     unittest.main()
