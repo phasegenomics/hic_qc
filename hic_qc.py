@@ -28,6 +28,14 @@ from scipy import optimize
 from _version import get_versions
 __version__ = get_versions()['version']
 
+# default QC thresholds if there is no thresholds file
+DEFAULT_MIN_LONG_CONTACT_PERCENTAGE     = 0.025
+DEFAULT_MIN_USEFUL_CONTACT_PERCENTAGE   = 0.025
+DEFAULT_MIN_SAME_STRAND_PERCENTAGE      = 0.05
+DEFAULT_MAX_DUPE_PERCENTAGE             = 0.4
+DEFAULT_MAX_ZERO_MAPQ_PERCENTAGE        = 0.2
+DEFAULT_MAX_UNMAPPED_PERCENTAGE         = 0.1
+
 def saturation(x, V, K):
     '''Computes non-duplicate read count given x reads and parameters V and K.
     Intended for use within scipy optimize.
@@ -75,9 +83,35 @@ class HiCQC(object):
     to create plots, print results, save tables, and create pdf reports.
     '''
 
-    def __init__(self, outfile_prefix='Read_mate_dist', rp_stats=None, mq_stats=None, edist_stats=None):
+    def __init__(self, outfile_prefix='Read_mate_dist', sample_type='genome', thresholds_file=None,
+                 rp_stats=None, mq_stats=None, edist_stats=None):
         '''Initialize metrics for later extraction and conversion.
         '''
+        self.sample_type = sample_type.lower()
+        self.qc_purpose = 'Unknown'
+        if self.sample_type == 'metagenome':
+            self.qc_purpose = 'Metagenome Deconvolution' 
+        elif self.sample_type == 'genome':
+            self.qc_purpose = 'Genome Scaffolding'
+        
+        if thresholds_file is None:
+            self.min_long_contact_percentage    =   DEFAULT_MIN_LONG_CONTACT_PERCENTAGE
+            self.min_useful_contact_percentage  =   DEFAULT_MIN_USEFUL_CONTACT_PERCENTAGE
+            self.min_same_strand_percentage     =   DEFAULT_MIN_SAME_STRAND_PERCENTAGE
+            self.max_dupe_percentage            =   DEFAULT_MAX_DUPE_PERCENTAGE
+            self.max_zero_mapq_percentage       =   DEFAULT_MAX_ZERO_MAPQ_PERCENTAGE
+            self.max_unmapped_percentage        =   DEFAULT_MAX_UNMAPPED_PERCENTAGE
+        else:
+            import json
+            with open(thresholds_file) as f:
+                thresholds = json.load(f)
+            self.min_long_contact_percentage    =   float(thresholds[sample_type]['MIN_LONG_CONTACT_PERCENTAGE'])
+            self.min_useful_contact_percentage  =   float(thresholds[sample_type]['MIN_USEFUL_CONTACT_PERCENTAGE'])
+            self.min_same_strand_percentage     =   float(thresholds[sample_type]['MIN_SAME_STRAND_PERCENTAGE'])
+            self.max_dupe_percentage            =   float(thresholds[sample_type]['MAX_DUPE_PERCENTAGE'])
+            self.max_zero_mapq_percentage       =   float(thresholds[sample_type]['MAX_ZERO_MAPQ_PERCENTAGE'])
+            self.max_unmapped_percentage        =   float(thresholds[sample_type]['MAX_UNMAPPED_PERCENTAGE'])
+
         self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
         self.per_pair_metrics = set(['intercontig_pairs',
                                      'intercontig_pairs_hq',
@@ -531,7 +565,7 @@ class HiCQC(object):
         long_hist_path = self.paths['outfile_prefix'] + '_long.png'
         fig1, ax = plt.subplots(1)
         if key_len > 0:
-            plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=50)
+            plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=50, edgecolor='black', color='red')
 
             ax.set_ylim(0.5, max(num_dists * 2, 1))
             plt.yscale('log', nonposy='clip')
@@ -548,7 +582,7 @@ class HiCQC(object):
         short_hist_path = self.paths['outfile_prefix'] + '_short.png'
 
         if key_len > 0:
-            plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=range(0, 20000, 500))
+            plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=range(0, 20000, 500), edgecolor='black', color='red')
             ax.set_xlim(0, 20000)
             ax.set_ylim(0.5, num_pairs * 2)
             plt.yscale('log', nonposy='clip')
@@ -577,7 +611,7 @@ class HiCQC(object):
                      bins=np.logspace(np.log10(min_dist+1),
                                       np.log10(max_dist),
                                       50),
-                     log=True)
+                     log=True, edgecolor='black', color='red')
             ax.set_ylim(0.5, max(num_pairs * 2, 1))
             plt.yscale('log', nonposy='clip')
             plt.xscale('log')
@@ -594,6 +628,39 @@ class HiCQC(object):
 
         self.paths['log_log_hist'] = log_log_hist_path
 
+        fig4, ax = plt.subplots(1)
+        log_log_norm_hist_path = self.paths['outfile_prefix'] + '_log_log_norm.png'
+
+        offset_dists = {}
+        for key, value in self.dists.items():
+            offset_dists[key+1] = value
+
+        if key_len > 0:
+            min_dist = min(self.dists.keys())
+            max_dist = max(self.dists.keys())
+
+            plt.hist(list(offset_dists.keys()),
+                     weights=list(offset_dists.values()),
+                     bins=np.logspace(np.log10(min_dist+1),
+                                      np.log10(max_dist),
+                                      50),
+                     log=True, edgecolor='black', color='red', normed=True)
+            ax.set_ylim(0.5, max(num_pairs * 2, 1))
+            plt.yscale('log', nonposy='clip')
+            plt.xscale('log')
+            plt.xlim(xmin=1)
+            plt.title(title_string)
+            plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
+            plt.ylabel('Density of reads (log scale)')
+            plt.tight_layout()
+        else:
+            plt.title('Warning: No read pair distribution to plot')
+
+        fig4.savefig(log_log_norm_hist_path)
+        plt.close(fig4)
+
+        self.paths['log_log_norm_hist'] = log_log_norm_hist_path
+
     def html_from_judgement(self):
         '''Set a formatted HTML string based on two judgment bool values
             Uses:
@@ -605,7 +672,6 @@ class HiCQC(object):
                 ValueError: if impossible logical situations occur given two bools.
 
         '''
-
         if self.judge_good and not self.judge_bad:
             self.judge_html = '<span class="pass">PASS</span>'
         elif not self.judge_good and self.judge_bad:
@@ -616,6 +682,36 @@ class HiCQC(object):
             self.judge_html = '<span class="low-signal">LOW SIGNAL</span>'
         else:
             raise ValueError('logical impossibility!')
+        
+        if self.long_contacts:
+            self.long_contacts_html = '<span class="pass">{0}</span>'
+        else:
+            self.long_contacts_html = '<span class="fail">{0}</span>'
+        
+        if self.useful_contacts:
+            self.useful_contacts_html = '<span class="pass">{0}</span>'
+        else:
+            self.useful_contacts_html = '<span class="fail">{0}</span>'
+        
+        if self.same_strand_hq:
+            self.same_strand_hq_html = '<span class="pass">{0}</span>'
+        else:
+            self.same_strand_hq_html = '<span class="fail">{0}</span>'
+        
+        if not self.high_dupe:
+            self.high_dupe_html = '<span class="pass">{0}</span>'
+        else:
+            self.high_dupe_html = '<span class="fail">{0}</span>'
+        
+        if not self.many_zero_mapq_reads:
+            self.many_zero_mapq_reads_html = '<span class="pass">{0}</span>'
+        else:
+            self.many_zero_mapq_reads_html = '<span class="fail">{0}</span>'
+        
+        if not self.many_unmapped_reads:
+            self.many_unmapped_reads_html = '<span class="pass">{0}</span>'
+        else:
+            self.many_unmapped_reads_html = '<span class="fail">{0}</span>'
 
     def pass_judgement(self):
         '''Pass judgement on the library according to certain mostly subjective ideas about what is good
@@ -628,39 +724,19 @@ class HiCQC(object):
             self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
-        if self.stats['total_read_pairs_hq'] > 0:
-            long_contacts = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
-            long_floor = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > 0.01
-            useful_contacts = self.stats['intercontig_pairs_hq'] / self.stats['total_read_pairs_hq'] > 0.1
-            many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.4
-            many_many_zero_pairs = self.stats['zero_dist_pairs'] / self.stats['total_read_pairs'] > 0.2
-            high_dupe = (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.1 and self.stats['total_read_pairs'] <= 1e6) \
-                        or (self.stats['duplicate_reads'] / self.stats['total_reads'] > 0.3 and self.stats['total_read_pairs'] <= 1e8)
-        else:
-            long_contacts = False
-            long_floor = False
-            useful_contacts = False
-            many_zero_pairs = False
-            many_many_zero_pairs = False
-            high_dupe = False
-
-        low_contiguity = self.N50 < 100000
+        # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
+        allowed_dupe_percentage = 1.0 if self.stats['total_read_pairs'] > 1e7 else 0.5
+        self.long_contacts   = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > self.min_long_contact_percentage
+        self.useful_contacts = self.stats['intercontig_pairs_hq']         / self.stats['total_read_pairs_hq'] > self.min_useful_contact_percentage
+        self.same_strand_hq  = self.stats['pairs_on_same_strand_hq']      / self.stats['total_read_pairs_hq'] > self.min_same_strand_percentage
+        self.high_dupe = self.stats['duplicate_reads']                    / self.stats['total_reads']         > self.max_dupe_percentage * allowed_dupe_percentage
+        self.many_zero_mapq_reads = self.stats['mapq0_reads']             / self.stats['total_reads']         > self.max_zero_mapq_percentage
+        self.many_unmapped_reads = self.stats['unmapped_reads']           / self.stats['total_reads']         > self.max_unmapped_percentage
 
         #print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
-        if (long_contacts or useful_contacts) and (low_contiguity or long_floor):
-            good = True
-        else:
-            good = False
-
-        bad = False
-        if low_contiguity:
-            if many_many_zero_pairs or high_dupe:
-                bad = True
-        else:
-            if many_zero_pairs or high_dupe or not long_floor:
-                bad = True
-        self.judge_good = good
-        self.judge_bad = bad
+        self.judge_good = self.long_contacts and self.useful_contacts and self.same_strand_hq
+        self.judge_bad  = self.high_dupe or self.many_zero_mapq_reads or self.many_unmapped_reads
+             
         self.html_from_judgement()
 
     def stringify_stats(self):
@@ -684,6 +760,8 @@ class HiCQC(object):
         else:
             extrap_dup_rate = self.stats['extrapolated_dup_rate']
 
+        # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
+        allowed_dupe_percentage = 1.0 if self.stats['total_read_pairs'] > 1e7 else 0.5
         # Dict of key --> (value, fmt) pairs for items that aren't counts
         self.other_stats = {
                             'N50': (self.N50, '{:,}'),
@@ -694,7 +772,14 @@ class HiCQC(object):
                             'total_reads': (self.stats['total_reads'], '{:,}'),
                             'target_read_total': (self.stats['target_read_total'], '{:,}'),
                             'extrapolated_dup_rate': (extrap_dup_rate, '{:.2f}%'),
-                            'judgment': (self.judge_html, '{}')
+                            'judgment': (self.judge_html, '{}'),
+                            'qc_purpose': (self.qc_purpose, '{}'),
+                            'long_contacts_threshold': (100.0 * self.min_long_contact_percentage, '{}'),
+                            'useful_contacts_threshold': (100.0 * self.min_useful_contact_percentage, '{}'),
+                            'same_strand_threshold': (100.0 * self.min_same_strand_percentage, '{}'),
+                            'high_dupe_threshold': (100.0 * self.max_dupe_percentage * allowed_dupe_percentage, '{}'),
+                            'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq_percentage, '{}'),
+                            'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}')
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
@@ -724,6 +809,13 @@ class HiCQC(object):
 
         for key, (value, fmt) in self.other_stats.items():
             self.out_stats[key] = fmt.format(value)
+
+        self.out_stats['long_contacts_html'] = self.long_contacts_html.format(self.out_stats['perc_pairs_intra_hq_gt10kbp'])
+        self.out_stats['useful_contacts_html'] = self.useful_contacts_html.format(self.out_stats['perc_intercontig_pairs_hq_gt10kbp'])
+        self.out_stats['same_strand_hq_html'] = self.same_strand_hq_html.format(self.out_stats['perc_pairs_on_same_strand_hq'])
+        self.out_stats['high_dupe_html'] = self.high_dupe_html.format(self.out_stats['perc_duplicate_reads'])
+        self.out_stats['many_zero_mapq_reads_html'] = self.many_zero_mapq_reads_html.format(self.out_stats['perc_mapq0_reads'])
+        self.out_stats['many_unmapped_reads_html'] = self.many_unmapped_reads_html.format(self.out_stats['perc_unmapped_reads'])
 
         self.out_stats['version'] = __version__
 
@@ -917,6 +1009,10 @@ def parse_args():
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40], help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0], help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--version', action='version', version=__version__)
+    parser.add_argument('--thresholds', default='./collateral/thresholds.json', 
+                        help='JSON file containing QC thresholds (Default: %(default)s)')
+    parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
+                        help='Use QC thresholds for the specified sample type (Default: %(default)s)')
 
     args = parser.parse_args()
 
@@ -936,7 +1032,7 @@ if __name__ == "__main__":
     if dirname != '' and not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    QC = HiCQC(outfile_prefix=args.outfile_prefix, rp_stats=args.rp_stats, mq_stats=args.mq_stats, edist_stats=args.edist_stats)
+    QC = HiCQC(outfile_prefix=args.outfile_prefix, sample_type=args.sample_type, thresholds_file=args.thresholds, rp_stats=args.rp_stats, mq_stats=args.mq_stats, edist_stats=args.edist_stats)
     if args.num_reads != -1:
         print('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
     else:
