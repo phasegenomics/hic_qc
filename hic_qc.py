@@ -415,6 +415,9 @@ class HiCQC(object):
         if self.mapping_dict is not None:
             self.write_mapping_stats()
 
+        # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
+        self.allowed_dupe_percentage = 1.0 if self.stats['total_read_pairs'] > 1e7 else 0.5
+
     def write_mapping_stats(self):
         with open('{}.mapping_stats.tsv'.format(self.paths['outfile_prefix']), 'w') as outfile:
             print('edist', 'mapq', 'min_size', 'count', sep='\t', file=outfile)
@@ -725,11 +728,10 @@ class HiCQC(object):
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
         # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
-        allowed_dupe_percentage = 1.0 if self.stats['total_read_pairs'] > 1e7 else 0.5
         self.long_contacts   = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > self.min_long_contact_percentage
         self.useful_contacts = self.stats['intercontig_pairs_hq']         / self.stats['total_read_pairs_hq'] > self.min_useful_contact_percentage
         self.same_strand_hq  = self.stats['pairs_on_same_strand_hq']      / self.stats['total_read_pairs_hq'] > self.min_same_strand_percentage
-        self.high_dupe = self.stats['duplicate_reads']                    / self.stats['total_reads']         > self.max_dupe_percentage * allowed_dupe_percentage
+        self.high_dupe = self.stats['duplicate_reads']                    / self.stats['total_reads']         > self.max_dupe_percentage * self.allowed_dupe_percentage
         self.many_zero_mapq_reads = self.stats['mapq0_reads']             / self.stats['total_reads']         > self.max_zero_mapq_percentage
         self.many_unmapped_reads = self.stats['unmapped_reads']           / self.stats['total_reads']         > self.max_unmapped_percentage
 
@@ -760,8 +762,6 @@ class HiCQC(object):
         else:
             extrap_dup_rate = self.stats['extrapolated_dup_rate']
 
-        # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
-        allowed_dupe_percentage = 1.0 if self.stats['total_read_pairs'] > 1e7 else 0.5
         # Dict of key --> (value, fmt) pairs for items that aren't counts
         self.other_stats = {
                             'N50': (self.N50, '{:,}'),
@@ -777,7 +777,7 @@ class HiCQC(object):
                             'long_contacts_threshold': (100.0 * self.min_long_contact_percentage, '{}'),
                             'useful_contacts_threshold': (100.0 * self.min_useful_contact_percentage, '{}'),
                             'same_strand_threshold': (100.0 * self.min_same_strand_percentage, '{}'),
-                            'high_dupe_threshold': (100.0 * self.max_dupe_percentage * allowed_dupe_percentage, '{}'),
+                            'high_dupe_threshold': (100.0 * self.max_dupe_percentage * self.allowed_dupe_percentage, '{}'),
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}')
                             }
