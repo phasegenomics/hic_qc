@@ -63,32 +63,36 @@ Different QC thresholds may be present in a thresholds file. The default file in
 
 ### Judgement categories
 The report includes a judgement about the library and the assembly it was mapped to based on the observed statistics, shown at the top of the report. Libraries are given one of four classifications:
-* PASS - the library and assembly appear to be sufficient for the purposes shown in the report.
-* FAIL - the library and assembly appear to be insufficient for the purposes shown in the report.
-* MIXED RESULTS - the library and assembly are probably sufficient for the purposes shown in the report, but there is some additional noise or other unexpected properties in the report as well.
-* LOW SIGNAL - the library and assembly don't appear to be actively bad, but there is not very much observable long-range Hi-C signal. It's likely they are insufficient for the purposes shown in the report.
+
+* **PASS** - the library and assembly appear to be sufficient for the purposes shown in the report.
+* **FAIL** - the library and assembly appear to be insufficient for the purposes shown in the report.
+* **MIXED RESULTS** - the library and assembly are probably sufficient for the purposes shown in the report, but there is some additional noise or other unexpected properties in the report as well.
+* **LOW SIGNAL** - the library and assembly don't appear to be actively bad, but there is not very much observable long-range Hi-C signal. It's likely they are insufficient for the purposes shown in the report.
+
 IMPORTANT NOTE: because input assembly is a significant contributor to the ability to perform a given analysis, a good library can still generate a failed result with a bad assembly. This can particularly occur with difficult-to-align-to assemblies, such as polyploids or highly heterozygous/repetitive assemblies.
 
 ### "Good" properties
 Three statistics are used to determine if a set of alignments has "good" aspects to it:
-* HQ RPs >10KB apart (CTGs >10KB): the percentage of read pairs that map with high quality (MAPQ >=20, max edit distance <=5, not dupes) in which both mates align to the same contig, the contig is at least 10kbp long, and the mates are at least 10kbp apart.
-* Intercontig HQ RPs (CTGs >10KB): the percentage of read pairs that map with high quality in which each mates aligns to a different contig, and each of those contigs are at least 10kbp.
-* Same strand HQ RPs: the percentage of read pairs that map with high quality to the same strand (such reads are almost guaranteed to be Hi-C junctions).
+
+* **HQ RPs >10KB apart (CTGs >10KB)**: the percentage of read pairs that map with high quality (MAPQ >=20, max edit distance <=5, not dupes) in which both mates align to the same contig, the contig is at least 10kbp long, and the mates are at least 10kbp apart.
+* **Intercontig HQ RPs (CTGs >10KB)**: the percentage of read pairs that map with high quality in which each mates aligns to a different contig, and each of those contigs are at least 10kbp.
+* **Same strand HQ RPs**: the percentage of read pairs that map with high quality to the same strand (such reads are almost guaranteed to be Hi-C junctions).
+
 The entire set of alignments is deemed to have "good" properties if ALL THREE good criteria pass the threshold.
 
 ### "Bad" properties
 Three statistics are used to determine if a set of alignments has "bad" aspects to it:
-* Duplicate reads: the percentage of reads that are flagged as PCR duplicates (by a prior tool such as Picard or SAMBLASTER).
-* Zero map quality reads: the percentage of reads aligning with zero MAPQ.
-* Unmapped reads: the percentage of reads that could not be mapped.
+* **Duplicate reads**: the percentage of reads that are flagged as PCR duplicates (by a prior tool such as Picard or SAMBLASTER).
+* **Zero map quality reads**: the percentage of reads aligning with zero MAPQ.
+* **Unmapped reads**: the percentage of reads that could not be mapped.
 The entire set of alignments is deemed to have "bad" properties if ANY OF THE THREE bad criteria fail the threshold.
 
 ### Generating the final judgement
 Thresholds for these "good" and "bad" aspects come from the specified thresholds JSON file and are shown in the report. The fields in the report are highlighted for convenience to show whether a specific metric passed or failed the threshold. These are used to generate the judgement calls:
-* PASS - "good" and "not bad"
-* FAIL - "not good" and "bad"
-* MIXED RESULTS - "good" and "bad"
-* LOW SIGNAL - "not good" and "not bad"
+* **PASS** - "good" and "not bad"
+* **FAIL** - "not good" and "bad"
+* **MIXED RESULTS** - "good" and "bad"
+* **LOW SIGNAL** - "not good" and "not bad"
 
 ## Histogram plot characteristics to look for
 Histogram plots should show some characteristic features:
