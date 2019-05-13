@@ -1009,7 +1009,7 @@ def parse_args():
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40], help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0], help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--version', action='version', version=__version__)
-    parser.add_argument('--thresholds', default='./collateral/thresholds.json', 
+    parser.add_argument('--thresholds', default='{0}/collateral/thresholds.json'.format(os.path.dirname(os.path.realpath(__file__))), 
                         help='JSON file containing QC thresholds (Default: %(default)s)')
     parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')
