@@ -78,19 +78,19 @@ tr:nth-child(even) {
 .pass, .fail, .low-signal, .mixed-results {
   padding: 3px 6px;
   font-weight: bold;
-  color: white;
+  color: black;
 }
 
 .pass {
-  background-color: green;
+  background-color: #AAFFAA;
 }
 
 .fail {
-  background-color: red;
+  background-color: #FFAAAA;
 }
 
 .low-signal, .mixed-results {
-  background-color: orange;
+  background-color: #FFBB99;
 }
 
 .pagebreak { page-break-before: always; }

@@ -25,4 +25,4 @@ install:
   - python --version
   - python setup.py install
 script:
-  - python test_bam_to_mate_hist.py
+  - python test_hic_qc.py
