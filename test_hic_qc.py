@@ -22,7 +22,7 @@ from __future__ import division
 import os
 import sys
 import unittest
-import bam_to_mate_hist as b2mh
+import hic_qc
 import pysam
 
 class MyTestCase(unittest.TestCase):
@@ -31,11 +31,11 @@ class MyTestCase(unittest.TestCase):
         bamfile = "collateral/abc_test.bam"
         count_diff_refname_stub = False
 
-        QC = b2mh.HiCQC()
+        QC = hic_qc.HiCQC()
         QC.parse_bam(bamfile, max_read_pairs=num_reads)
         self.QC = QC
         self.stats = QC.stats
-        # self.stat_dict, total_reads, num_dupes = b2mh.parse_bam_file(
+        # self.stat_dict, total_reads, num_dupes = hic_qc.parse_bam_file(
         #     num_reads=num_reads, bamfile=bamfile, count_diff_refname_stub=count_diff_refname_stub)
 
         self.example_read = pysam.AlignedSegment()
@@ -92,13 +92,13 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(num_zeros, self.stats['zero_dist_pairs'])
 
     def test_is_split_read_false(self):
-        QCtmp = b2mh.HiCQC()
+        QCtmp = hic_qc.HiCQC()
         QCtmp.update_read_stats(self.example_read)
 
         self.assertEqual(QCtmp.stats['split_reads'], 0)
 
     def test_is_split_read_true(self):
-        QCtmp = b2mh.HiCQC()
+        QCtmp = hic_qc.HiCQC()
         self.example_read.set_tag("SA", 1)
 
         QCtmp.update_read_stats(self.example_read)
