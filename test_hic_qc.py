@@ -4,9 +4,9 @@ Max Press
 August 22, 2018
 Phase Genomics
 
-bam_to_mate_hist/test_bam_to_mate_hist.py
+hic_qc/test_hic_qc.py
 
-This file contains unit tests for functions of the bam_to_mate_hist.py script.
+This file contains unit tests for functions of the hic_qc.py script.
 
 Copyright 2018, Phase Genomics Inc. All rights reserved.
 

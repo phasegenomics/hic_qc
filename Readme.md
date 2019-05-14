@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/phasegenomics/bam_to_mate_hist.svg?branch=master)](https://travis-ci.com/phasegenomics/bam_to_mate_hist)
+[![Build Status](https://travis-ci.com/phasegenomics/hic_qc.svg?branch=master)](https://travis-ci.com/phasegenomics/hic_qc)
 
 # `hic_qc.py` readme.
 
@@ -19,7 +19,7 @@ Hi-C connectivity drops off in approximately a power-law with increasing linear 
 
 For installation, run this statement in a terminal:
 
-`git clone https://github.com/phasegenomics/bam_to_mate_hist.git && cd bam_to_mate_hist && pip install --user -r requirements.txt && python setup.py install --user`
+`git clone https://github.com/phasegenomics/hic_qc.git && cd hic_qc && pip install --user -r requirements.txt && python setup.py install --user`
 
 We include a `requirements.txt` file with dependencies, which should be installed if you use the above command. However, if you want to use the PDF report feature of this tool, you will need to install `wkhtmltopdf` externally, as we cannot install this readily.
 
@@ -30,7 +30,7 @@ Some dependencies such as matplotlib don't play nicely with all pythons, such th
 ### Conda installation
 We have also successfully installed requirements using the following conda command (replace X and Y with desired python version):
 
-`conda env create -n bam_to_mate_hist --file env.yml`
+`conda env create -n hic_qc --file env.yml`
 
 This will create a python 3.6 environment and automatically install the `wkhtmltopdf` dependency.
 
@@ -55,7 +55,7 @@ The script can also make a full-on PDF report of those metrics with the plots em
 
 To set the name of the files written out, such as the PNG figures and the report PDF, set the `-o /path/to/outfile` or `--outfile_name /path/to/outfile` parameters.
 
-QC is performed using a set of thresholds in JSON format. By default, the file `bam_to_mate_hist/collateral/thresholds.json` is used. The chosen file may be changed with the `--thresholds` flag. Note that the thresholds in the default file are informed by Phase Genomics' analysis of thousands of Hi-C libraries, and reflect what we ourselves use for QC.
+QC is performed using a set of thresholds in JSON format. By default, the file `hic_qc/collateral/thresholds.json` is used. The chosen file may be changed with the `--thresholds` flag. Note that the thresholds in the default file are informed by Phase Genomics' analysis of thousands of Hi-C libraries, and reflect what we ourselves use for QC.
 
 Different QC thresholds may be present in a thresholds file. The default file includes thresholds for genome scaffolding projects and metagenome deconvolution projects. The `--sample_type` argument is used to specify which set of thresholds in the thresholds file should be used in the run, and is also noted at the top of the report. By default, the `genome` sample type is used. Additional sample types may be added to a thresholds JSON file by making them keys in the file.
 
