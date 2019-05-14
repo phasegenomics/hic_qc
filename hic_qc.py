@@ -1,11 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # takes a bam file and makes a histogram of distances between mate alignments to the
 # reference assembly
 # takes the first 1M read pairs by default
 
 ### USAGE:
-# python bam_to_mate_hist.py -b <BAM_FILE> -n <NUM_READS_TO_USE> -o <outfile_stub>
+# python hic_qc.py -b <BAM_FILE> -n <NUM_READS_TO_USE> -o <outfile_stub>
 # creates files in the working directory with relevant plots, also text files of statistics.
 # flip -r flag  (assuming you have dependencies) to make a PDF report with everything together.
 
@@ -90,10 +90,10 @@ class HiCQC(object):
         self.sample_type = sample_type.lower()
         self.qc_purpose = 'Unknown'
         if self.sample_type == 'metagenome':
-            self.qc_purpose = 'Metagenome Deconvolution' 
+            self.qc_purpose = 'Metagenome Deconvolution'
         elif self.sample_type == 'genome':
             self.qc_purpose = 'Genome Scaffolding'
-        
+
         if thresholds_file is None:
             self.min_long_contact_percentage    =   DEFAULT_MIN_LONG_CONTACT_PERCENTAGE
             self.min_useful_contact_percentage  =   DEFAULT_MIN_USEFUL_CONTACT_PERCENTAGE
@@ -249,7 +249,7 @@ class HiCQC(object):
         '''
 
         if 'HD' in header and 'SO' in header['HD'] and header['HD']['SO'].lower().strip() == 'coordinate':
-            raise ValueError('Error: bam_to_mate_hist.py requires read name sorted input, but bamfile {} is coordinate sorted'.format(self.paths['bamfile']))
+            raise ValueError('Error: hic_qc.py requires read name sorted input, but bamfile {} is coordinate sorted'.format(self.paths['bamfile']))
 
         self.refs = header.references
         self.stats['num_refs'] = len(self.refs)
@@ -676,41 +676,41 @@ class HiCQC(object):
 
         '''
         if self.judge_good and not self.judge_bad:
-            self.judge_html = '<span class="pass">PASS</span>'
+            self.judge_html = '<span class="pass">SUFFICIENT</span>'
         elif not self.judge_good and self.judge_bad:
-            self.judge_html = '<span class="fail">FAIL</span>'
+            self.judge_html = '<span class="fail">INSUFFICIENT</span>'
         elif self.judge_good and self.judge_bad:
             self.judge_html = '<span class="mixed-results">MIXED RESULTS</span>'
         elif not self.judge_good and not self.judge_bad:
             self.judge_html = '<span class="low-signal">LOW SIGNAL</span>'
         else:
             raise ValueError('logical impossibility!')
-        
+
         if self.long_contacts:
             self.long_contacts_html = '<span class="pass">{0}</span>'
         else:
             self.long_contacts_html = '<span class="fail">{0}</span>'
-        
+
         if self.useful_contacts:
             self.useful_contacts_html = '<span class="pass">{0}</span>'
         else:
             self.useful_contacts_html = '<span class="fail">{0}</span>'
-        
+
         if self.same_strand_hq:
             self.same_strand_hq_html = '<span class="pass">{0}</span>'
         else:
             self.same_strand_hq_html = '<span class="fail">{0}</span>'
-        
+
         if not self.high_dupe:
             self.high_dupe_html = '<span class="pass">{0}</span>'
         else:
             self.high_dupe_html = '<span class="fail">{0}</span>'
-        
+
         if not self.many_zero_mapq_reads:
             self.many_zero_mapq_reads_html = '<span class="pass">{0}</span>'
         else:
             self.many_zero_mapq_reads_html = '<span class="fail">{0}</span>'
-        
+
         if not self.many_unmapped_reads:
             self.many_unmapped_reads_html = '<span class="pass">{0}</span>'
         else:
@@ -738,7 +738,7 @@ class HiCQC(object):
         #print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
         self.judge_good = self.long_contacts and self.useful_contacts and self.same_strand_hq
         self.judge_bad  = self.high_dupe or self.many_zero_mapq_reads or self.many_unmapped_reads
-             
+
         self.html_from_judgement()
 
     def stringify_stats(self):
@@ -941,10 +941,10 @@ class HiCQC(object):
 
     def write_pdf_report(self):
         '''Make the pdf report using the template.
-        Requires markdown template in the collateral directory of bam_to_mate_hist.
+        Requires markdown template in the collateral directory of hic_qc.
 
         Uses:
-            self.paths['script_dir']: Path to bam_to_mate_hist directory.
+            self.paths['script_dir']: Path to hic_qc directory.
             self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
             self.paths['outfile_prefix'] (str):  Path prefix for output files.
         '''
@@ -1009,7 +1009,7 @@ def parse_args():
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40], help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0], help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--version', action='version', version=__version__)
-    parser.add_argument('--thresholds', default='{0}/collateral/thresholds.json'.format(os.path.dirname(os.path.realpath(__file__))), 
+    parser.add_argument('--thresholds', default='{0}/collateral/thresholds.json'.format(os.path.dirname(os.path.realpath(__file__))),
                         help='JSON file containing QC thresholds (Default: %(default)s)')
     parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')

@@ -64,8 +64,8 @@ Different QC thresholds may be present in a thresholds file. The default file in
 ### Judgement categories
 The report includes a judgement about the library and the assembly it was mapped to based on the observed statistics, shown at the top of the report. Libraries are given one of four classifications:
 
-* **PASS** - the library and assembly appear to be sufficient for the purposes shown in the report.
-* **FAIL** - the library and assembly appear to be insufficient for the purposes shown in the report.
+* **SUFFICIENT** - the library and assembly appear to be sufficient for the purposes shown in the report.
+* **INSUFFICIENT** - the library and assembly appear to be insufficient for the purposes shown in the report.
 * **MIXED RESULTS** - the library and assembly are probably sufficient for the purposes shown in the report, but there is some additional noise or other unexpected properties in the report as well.
 * **LOW SIGNAL** - the library and assembly don't appear to be actively bad, but there is not very much observable long-range Hi-C signal. It's likely they are insufficient for the purposes shown in the report.
 
@@ -89,13 +89,14 @@ The entire set of alignments is deemed to have "bad" properties if ANY OF THE TH
 
 ### Generating the final judgement
 Thresholds for these "good" and "bad" aspects come from the specified thresholds JSON file and are shown in the report. The fields in the report are highlighted for convenience to show whether a specific metric passed or failed the threshold. These are used to generate the judgement calls:
-* **PASS** - "good" and "not bad"
-* **FAIL** - "not good" and "bad"
+* **SUFFICIENT** - "good" and "not bad"
+* **INSUFFICIENT** - "not good" and "bad"
 * **MIXED RESULTS** - "good" and "bad"
 * **LOW SIGNAL** - "not good" and "not bad"
 
 ## Histogram plot characteristics to look for
 Histogram plots should show some characteristic features:
+
 * Substantial long-range contacts (note that contact distance is bounded by the assembly). You will want to see at least some contacts approximately as long as your longest contig. In the log-log histogram, the appearance of a second hump or positive slope after the initial dropoff is a very good qualitative sign.
 * Gradual drop-off in signal with increasing distance (in log space). Choppiness or spikes in the distribution may indicate problems such as collapsed repeats or chimerisms, unless it can be attributed to sampling error due to (very) small numbers of reads. Periodicity in the distribution with distance often indicates problems.
 * The leftmost spike of mates mapping very close is always the most prominent feature in the plot. However, it should not be too much larger than the rest of the distribution, or you are not having enough long-distance contacts. A dropoff of 3-4 orders of magnitude in the 0-20KB plot is the most you want to see in that sudden dropoff. Ideally it would be only 1-2 orders of magnitude dropoff in the 0-20KB range.
