@@ -82,15 +82,15 @@ tr:nth-child(even) {
 }
 
 .pass {
-  background-color: green;
+  background-color: #009900;
 }
 
 .fail {
-  background-color: red;
+  background-color: #990000;
 }
 
 .low-signal, .mixed-results {
-  background-color: orange;
+  background-color: #BB7700;
 }
 
 .pagebreak { page-break-before: always; }
