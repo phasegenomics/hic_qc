@@ -137,7 +137,7 @@ class HiCQC(object):
                                'perc_pairs_greater_10k_on_contigs_greater_10k': ('pairs_greater_10k_on_contigs_greater_10k', 'pairs_on_contigs_greater_10k'),
                                'perc_pairs_intra_hq_gt10kbp': ('pairs_intracontig_hq_gt10kbp', 'pairs_intracontig_hq'),
                                'perc_pairs_on_same_strand': ('pairs_on_same_strand', 'total_pairs_on_same_contig'),
-                               'perc_pairs_on_same_strand_hq': ('pairs_on_same_strand_hq', 'pairs_intracontig_hq'),
+                               'perc_pairs_on_same_strand_hq': ('pairs_on_same_strand_hq', 'total_read_pairs_hq'),
                                'perc_intercontig_pairs': ('intercontig_pairs', 'total_read_pairs'),
                                'perc_intercontig_pairs_hq': ('intercontig_pairs_hq', 'total_read_pairs_hq'),
                                'perc_intercontig_pairs_hq_gt10kbp': ('pairs_intercontig_hq_gt10kbp', 'total_read_pairs_hq'),
