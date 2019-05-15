@@ -111,5 +111,231 @@ class MyTestCase(unittest.TestCase):
         else:
             return True
 
+    def test_pass_judgement_sufficient(self):
+        # should pass
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 100
+        QCtmp.stats['total_reads'] = 400
+        QCtmp.stats['total_read_pairs'] = 200
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 10 # 10%
+        QCtmp.stats['intercontig_pairs_hq'] = 10 # 10%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 10%
+        QCtmp.stats['duplicate_reads'] = 0 # 0%
+        QCtmp.stats['zero_dist_pairs'] = 0 # 0%
+        QCtmp.stats['unmapped_reads'] = 0 # 0%
+        QCtmp.pass_judgement()
+        self.assertTrue(QCtmp.long_contacts)
+        self.assertTrue(QCtmp.useful_contacts)
+        self.assertTrue(QCtmp.same_strand_hq)
+        self.assertFalse(QCtmp.high_dupe)
+        self.assertFalse(QCtmp.many_zero_dist_pairs)
+        self.assertFalse(QCtmp.many_unmapped_reads)
+        self.assertTrue(QCtmp.judge_good)
+        self.assertFalse(QCtmp.judge_bad)
+
+    def test_pass_judgement_insufficient(self):
+        # should fail
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 100
+        QCtmp.stats['total_reads'] = 400
+        QCtmp.stats['total_read_pairs'] = 200
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 0 # 0%
+        QCtmp.stats['intercontig_pairs_hq'] = 0 # 0%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 0 # 0%
+        QCtmp.stats['duplicate_reads'] = 200 # 50%
+        QCtmp.stats['zero_dist_pairs'] = 100 # 50%
+        QCtmp.stats['unmapped_reads'] = 200 # 50%
+        QCtmp.pass_judgement()
+        self.assertFalse(QCtmp.long_contacts)
+        self.assertFalse(QCtmp.useful_contacts)
+        self.assertFalse(QCtmp.same_strand_hq)
+        self.assertTrue(QCtmp.high_dupe)
+        self.assertTrue(QCtmp.many_zero_dist_pairs)
+        self.assertTrue(QCtmp.many_unmapped_reads)
+        self.assertFalse(QCtmp.judge_good)
+        self.assertTrue(QCtmp.judge_bad)
+
+    def test_pass_judgement_mixed(self):
+        # should be mixed results
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 100
+        QCtmp.stats['total_reads'] = 400
+        QCtmp.stats['total_read_pairs'] = 200
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 10 # 10%
+        QCtmp.stats['intercontig_pairs_hq'] = 10 # 10%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 10%
+        QCtmp.stats['duplicate_reads'] = 200 # 50%
+        QCtmp.stats['zero_dist_pairs'] = 100 # 50%
+        QCtmp.stats['unmapped_reads'] = 200 # 50%
+        QCtmp.pass_judgement()
+        self.assertTrue(QCtmp.long_contacts)
+        self.assertTrue(QCtmp.useful_contacts)
+        self.assertTrue(QCtmp.same_strand_hq)
+        self.assertTrue(QCtmp.high_dupe)
+        self.assertTrue(QCtmp.many_zero_dist_pairs)
+        self.assertTrue(QCtmp.many_unmapped_reads)
+        self.assertTrue(QCtmp.judge_good)
+        self.assertTrue(QCtmp.judge_bad)
+
+    def test_pass_judgement_low_signal(self):
+        # should fail
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 100
+        QCtmp.stats['total_reads'] = 400
+        QCtmp.stats['total_read_pairs'] = 200
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 0 # 0%
+        QCtmp.stats['intercontig_pairs_hq'] = 0 # 0%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 0 # 0%
+        QCtmp.stats['duplicate_reads'] = 0 # 0%
+        QCtmp.stats['zero_dist_pairs'] = 0 # 0%
+        QCtmp.stats['unmapped_reads'] = 0 # 0%
+        QCtmp.pass_judgement()
+        self.assertFalse(QCtmp.long_contacts)
+        self.assertFalse(QCtmp.useful_contacts)
+        self.assertFalse(QCtmp.same_strand_hq)
+        self.assertFalse(QCtmp.high_dupe)
+        self.assertFalse(QCtmp.many_zero_dist_pairs)
+        self.assertFalse(QCtmp.many_unmapped_reads)
+        self.assertFalse(QCtmp.judge_good)
+        self.assertFalse(QCtmp.judge_bad)
+
+    def test_pass_judgement_close_not_sufficient(self):
+        # should pass
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 100
+        QCtmp.stats['total_reads'] = 400
+        QCtmp.stats['total_read_pairs'] = 200
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 10 # 10%
+        QCtmp.stats['intercontig_pairs_hq'] = 10 # 10%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 0 # 0%
+        QCtmp.stats['duplicate_reads'] = 0 # 0%
+        QCtmp.stats['zero_dist_pairs'] = 0 # 0%
+        QCtmp.stats['unmapped_reads'] = 0 # 0%
+        QCtmp.pass_judgement()
+        self.assertTrue(QCtmp.long_contacts)
+        self.assertTrue(QCtmp.useful_contacts)
+        self.assertFalse(QCtmp.same_strand_hq)
+        self.assertFalse(QCtmp.high_dupe)
+        self.assertFalse(QCtmp.many_zero_dist_pairs)
+        self.assertFalse(QCtmp.many_unmapped_reads)
+        self.assertFalse(QCtmp.judge_good)
+        self.assertFalse(QCtmp.judge_bad)
+
+    def test_pass_judgement_close_still_insufficient(self):
+        # should pass
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 100
+        QCtmp.stats['total_reads'] = 400
+        QCtmp.stats['total_read_pairs'] = 200
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 0 # 10%
+        QCtmp.stats['intercontig_pairs_hq'] = 0 # 10%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 0 # 0%
+        QCtmp.stats['duplicate_reads'] = 0 # 0%
+        QCtmp.stats['zero_dist_pairs'] = 100 # 50%
+        QCtmp.stats['unmapped_reads'] = 0 # 0%
+        QCtmp.pass_judgement()
+        self.assertFalse(QCtmp.long_contacts)
+        self.assertFalse(QCtmp.useful_contacts)
+        self.assertFalse(QCtmp.same_strand_hq)
+        self.assertFalse(QCtmp.high_dupe)
+        self.assertTrue(QCtmp.many_zero_dist_pairs)
+        self.assertFalse(QCtmp.many_unmapped_reads)
+        self.assertFalse(QCtmp.judge_good)
+        self.assertTrue(QCtmp.judge_bad)
+
+    def test_pass_judgement_on_boundaries_should_be_low_signal(self):
+        # should pass
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 1000
+        QCtmp.stats['total_reads'] = 4000
+        QCtmp.stats['total_read_pairs'] = 2000
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 25 # 2.5%
+        QCtmp.stats['intercontig_pairs_hq'] = 25 # 2.5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 50 # 5%
+        QCtmp.stats['duplicate_reads'] = 800 # 20%
+        QCtmp.stats['zero_dist_pairs'] = 400 # 20%
+        QCtmp.stats['unmapped_reads'] = 400 # 10%
+        QCtmp.pass_judgement()
+        self.assertFalse(QCtmp.long_contacts)
+        self.assertFalse(QCtmp.useful_contacts)
+        self.assertFalse(QCtmp.same_strand_hq)
+        self.assertFalse(QCtmp.high_dupe)
+        self.assertFalse(QCtmp.many_zero_dist_pairs)
+        self.assertFalse(QCtmp.many_unmapped_reads)
+        self.assertFalse(QCtmp.judge_good)
+        self.assertFalse(QCtmp.judge_bad)
+
+    def test_pass_judgement_just_across_sufficient_boundary(self):
+        # should pass
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 1000
+        QCtmp.stats['total_reads'] = 4000
+        QCtmp.stats['total_read_pairs'] = 2000
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 26 # 2.6%
+        QCtmp.stats['intercontig_pairs_hq'] = 26 # 2.6%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 51 # 5.1%
+        QCtmp.stats['duplicate_reads'] = 800 # 20%
+        QCtmp.stats['zero_dist_pairs'] = 400 # 20%
+        QCtmp.stats['unmapped_reads'] = 400 # 10%
+        QCtmp.pass_judgement()
+        self.assertTrue(QCtmp.long_contacts)
+        self.assertTrue(QCtmp.useful_contacts)
+        self.assertTrue(QCtmp.same_strand_hq)
+        self.assertFalse(QCtmp.high_dupe)
+        self.assertFalse(QCtmp.many_zero_dist_pairs)
+        self.assertFalse(QCtmp.many_unmapped_reads)
+        self.assertTrue(QCtmp.judge_good)
+        self.assertFalse(QCtmp.judge_bad)
+
+    def test_pass_judgement_just_across_insufficient_boundary(self):
+        # should pass
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 1000
+        QCtmp.stats['total_reads'] = 4000
+        QCtmp.stats['total_read_pairs'] = 2000
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 25 # 2.5%
+        QCtmp.stats['intercontig_pairs_hq'] = 25 # 2.5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 50 # 5%
+        QCtmp.stats['duplicate_reads'] = 801 # 20.025%
+        QCtmp.stats['zero_dist_pairs'] = 400 # 20%
+        QCtmp.stats['unmapped_reads'] = 400 # 10%
+        QCtmp.pass_judgement()
+        self.assertFalse(QCtmp.long_contacts)
+        self.assertFalse(QCtmp.useful_contacts)
+        self.assertFalse(QCtmp.same_strand_hq)
+        self.assertTrue(QCtmp.high_dupe)
+        self.assertFalse(QCtmp.many_zero_dist_pairs)
+        self.assertFalse(QCtmp.many_unmapped_reads)
+        self.assertFalse(QCtmp.judge_good)
+        self.assertTrue(QCtmp.judge_bad)
+
+    def test_pass_judgement_real(self):
+        # data from a real sample
+        QCtmp = hic_qc.HiCQC()
+        QCtmp.allowed_dupe_percentage = 0.5
+        QCtmp.stats['total_read_pairs_hq'] = 100
+        QCtmp.stats['total_reads'] = 400
+        QCtmp.stats['total_read_pairs'] = 200
+        QCtmp.stats['pairs_intracontig_hq_gt10kbp'] = 7 # 7%
+        QCtmp.stats['intercontig_pairs_hq'] = 9 # 9%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 6 # 6%
+        QCtmp.stats['duplicate_reads'] = 8 # 2%
+        QCtmp.stats['zero_dist_pairs'] = 44 # 22%
+        QCtmp.stats['unmapped_reads'] = 0 # 0%
+        QCtmp.pass_judgement()
+        self.assertTrue(QCtmp.judge_good)
+        self.assertTrue(QCtmp.judge_bad)
+        
+        
+
 if __name__ == '__main__':
     unittest.main()

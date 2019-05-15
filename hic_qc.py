@@ -33,7 +33,7 @@ DEFAULT_MIN_LONG_CONTACT_PERCENTAGE     = 0.025
 DEFAULT_MIN_USEFUL_CONTACT_PERCENTAGE   = 0.025
 DEFAULT_MIN_SAME_STRAND_PERCENTAGE      = 0.05
 DEFAULT_MAX_DUPE_PERCENTAGE             = 0.4
-DEFAULT_MAX_ZERO_MAPQ_PERCENTAGE        = 0.2
+DEFAULT_MAX_ZERO_DIST_PERCENTAGE        = 0.2
 DEFAULT_MAX_UNMAPPED_PERCENTAGE         = 0.1
 
 def saturation(x, V, K):
@@ -99,7 +99,7 @@ class HiCQC(object):
             self.min_useful_contact_percentage  =   DEFAULT_MIN_USEFUL_CONTACT_PERCENTAGE
             self.min_same_strand_percentage     =   DEFAULT_MIN_SAME_STRAND_PERCENTAGE
             self.max_dupe_percentage            =   DEFAULT_MAX_DUPE_PERCENTAGE
-            self.max_zero_mapq_percentage       =   DEFAULT_MAX_ZERO_MAPQ_PERCENTAGE
+            self.max_zero_dist_percentage       =   DEFAULT_MAX_ZERO_DIST_PERCENTAGE
             self.max_unmapped_percentage        =   DEFAULT_MAX_UNMAPPED_PERCENTAGE
         else:
             import json
@@ -109,7 +109,7 @@ class HiCQC(object):
             self.min_useful_contact_percentage  =   float(thresholds[sample_type]['MIN_USEFUL_CONTACT_PERCENTAGE'])
             self.min_same_strand_percentage     =   float(thresholds[sample_type]['MIN_SAME_STRAND_PERCENTAGE'])
             self.max_dupe_percentage            =   float(thresholds[sample_type]['MAX_DUPE_PERCENTAGE'])
-            self.max_zero_mapq_percentage       =   float(thresholds[sample_type]['MAX_ZERO_MAPQ_PERCENTAGE'])
+            self.max_zero_dist_percentage       =   float(thresholds[sample_type]['MAX_ZERO_DIST_PERCENTAGE'])
             self.max_unmapped_percentage        =   float(thresholds[sample_type]['MAX_UNMAPPED_PERCENTAGE'])
 
         self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
@@ -706,10 +706,10 @@ class HiCQC(object):
         else:
             self.high_dupe_html = '<span class="fail">{0}</span>'
 
-        if not self.many_zero_mapq_reads:
-            self.many_zero_mapq_reads_html = '<span class="pass">{0}</span>'
+        if not self.many_zero_dist_pairs:
+            self.many_zero_dist_pairs_html = '<span class="pass">{0}</span>'
         else:
-            self.many_zero_mapq_reads_html = '<span class="fail">{0}</span>'
+            self.many_zero_dist_pairs_html = '<span class="fail">{0}</span>'
 
         if not self.many_unmapped_reads:
             self.many_unmapped_reads_html = '<span class="pass">{0}</span>'
@@ -727,17 +727,16 @@ class HiCQC(object):
             self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
+        self.long_contacts   = float(self.stats['pairs_intracontig_hq_gt10kbp']) / self.stats['total_read_pairs_hq'] > self.min_long_contact_percentage
+        self.useful_contacts = float(self.stats['intercontig_pairs_hq'])         / self.stats['total_read_pairs_hq'] > self.min_useful_contact_percentage
+        self.same_strand_hq  = float(self.stats['pairs_on_same_strand_hq'])      / self.stats['total_read_pairs_hq'] > self.min_same_strand_percentage
         # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
-        self.long_contacts   = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > self.min_long_contact_percentage
-        self.useful_contacts = self.stats['intercontig_pairs_hq']         / self.stats['total_read_pairs_hq'] > self.min_useful_contact_percentage
-        self.same_strand_hq  = self.stats['pairs_on_same_strand_hq']      / self.stats['total_read_pairs_hq'] > self.min_same_strand_percentage
-        self.high_dupe = self.stats['duplicate_reads']                    / self.stats['total_reads']         > self.max_dupe_percentage * self.allowed_dupe_percentage
-        self.many_zero_mapq_reads = self.stats['mapq0_reads']             / self.stats['total_reads']         > self.max_zero_mapq_percentage
-        self.many_unmapped_reads = self.stats['unmapped_reads']           / self.stats['total_reads']         > self.max_unmapped_percentage
+        self.high_dupe = float(self.stats['duplicate_reads'])                    / self.stats['total_reads']         > self.max_dupe_percentage * self.allowed_dupe_percentage
+        self.many_zero_dist_pairs = float(self.stats['zero_dist_pairs'])         / self.stats['total_read_pairs']    > self.max_zero_dist_percentage
+        self.many_unmapped_reads = float(self.stats['unmapped_reads'])           / self.stats['total_reads']         > self.max_unmapped_percentage
 
-        #print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
         self.judge_good = self.long_contacts and self.useful_contacts and self.same_strand_hq
-        self.judge_bad  = self.high_dupe or self.many_zero_mapq_reads or self.many_unmapped_reads
+        self.judge_bad  = self.high_dupe or self.many_zero_dist_pairs or self.many_unmapped_reads
 
         self.html_from_judgement()
 
@@ -778,7 +777,7 @@ class HiCQC(object):
                             'useful_contacts_threshold': (100.0 * self.min_useful_contact_percentage, '{}'),
                             'same_strand_threshold': (100.0 * self.min_same_strand_percentage, '{}'),
                             'high_dupe_threshold': (100.0 * self.max_dupe_percentage * self.allowed_dupe_percentage, '{}'),
-                            'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq_percentage, '{}'),
+                            'many_zero_dist_threshold': (100.0 * self.max_zero_dist_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}')
                             }
         self.out_stats = {}
@@ -814,7 +813,7 @@ class HiCQC(object):
         self.out_stats['useful_contacts_html'] = self.useful_contacts_html.format(self.out_stats['perc_intercontig_pairs_hq_gt10kbp'])
         self.out_stats['same_strand_hq_html'] = self.same_strand_hq_html.format(self.out_stats['perc_pairs_on_same_strand_hq'])
         self.out_stats['high_dupe_html'] = self.high_dupe_html.format(self.out_stats['perc_duplicate_reads'])
-        self.out_stats['many_zero_mapq_reads_html'] = self.many_zero_mapq_reads_html.format(self.out_stats['perc_mapq0_reads'])
+        self.out_stats['many_zero_dist_pairs_html'] = self.many_zero_dist_pairs_html.format(self.out_stats['perc_zero_dist_pairs'])
         self.out_stats['many_unmapped_reads_html'] = self.many_unmapped_reads_html.format(self.out_stats['perc_unmapped_reads'])
 
         self.out_stats['version'] = __version__

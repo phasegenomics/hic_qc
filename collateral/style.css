@@ -76,7 +76,7 @@ tr:nth-child(even) {
 }
 
 .pass, .fail, .low-signal, .mixed-results {
-  padding: 3px 6px;
+  padding: 1px 6px;
   font-weight: bold;
   color: black;
 }

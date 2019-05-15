@@ -12,7 +12,7 @@
 | Intercontig HQ RPs (CTGs >10KB)    | {useful_contacts_html}       | > {useful_contacts_threshold}%                                   |
 | Same strand HQ RPs       | {same_strand_hq_html}    | > {same_strand_threshold}%                          |
 | Duplicate reads**     | {high_dupe_html}         | < {high_dupe_threshold}%                                        |
-| Zero map quality reads      | {many_zero_mapq_reads_html}             | < {many_zero_mapq_threshold}%                                        |
+| Zero map distance reads      | {many_zero_dist_pairs_html}             | < {many_zero_dist_threshold}%                                        |
 | Unmapped reads         | {many_unmapped_reads_html}          | < {many_unmapped_threshold}%                               |
 
 <div class="small center">
@@ -46,7 +46,7 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
 | Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
 | Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
-| Zero-distance RPs                                        | {perc_zero_dist_pairs}         | 0-20%                                        |
+| Zero MAPQ reads                                       | {perc_mapq0_reads}         | 0-20%                                        |
 | Duplicate reads (extrapolated)*                          | {extrapolated_dup_rate}        | 0-50%                               |
 </center>
 
