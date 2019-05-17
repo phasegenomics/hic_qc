@@ -329,7 +329,6 @@ class HiCQC(object):
         '''
 
         is_high_qual_pair = self.is_high_qual_pair(a, b)
-        is_useless_pair = False
 
         if is_high_qual_pair:
             self.stats['total_read_pairs_hq'] += 1
