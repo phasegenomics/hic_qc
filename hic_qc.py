@@ -693,7 +693,7 @@ class HiCQC(object):
             plt.xlim(xmin=1)
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
-            plt.ylabel('Density of reads (percentage, log scale)')
+            plt.ylabel('Density of reads (density, log scale)')
             plt.tight_layout()
         else:
             plt.title('Warning: No read pair distribution to plot')
