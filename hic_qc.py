@@ -29,12 +29,16 @@ from _version import get_versions
 __version__ = get_versions()['version']
 
 # default QC thresholds if there is no thresholds file
-DEFAULT_MIN_LONG_CONTACT_PERCENTAGE     = 0.025
-DEFAULT_MIN_USEFUL_CONTACT_PERCENTAGE   = 0.025
-DEFAULT_MIN_SAME_STRAND_PERCENTAGE      = 0.05
-DEFAULT_MAX_DUPE_PERCENTAGE             = 0.4
-DEFAULT_MAX_ZERO_MAPQ_PERCENTAGE        = 0.2
-DEFAULT_MAX_UNMAPPED_PERCENTAGE         = 0.1
+DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.05
+DEFAULT_MIN_INFORMATIVE_READ_PAIRS_PERCENTAGE   =   0.05
+DEFAULT_MAX_NONINFORMATIVE_READ_PAIR_PERCENTAGE =   0.50
+DEFAULT_MIN_LONG_CONTACT_PERCENTAGE             =   0.025
+DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE      =   0.025
+DEFAULT_MIN_USABLE_READS_PER_CONTIG             =   600
+DEFAULT_MAX_DUPE_PERCENTAGE                     =   0.40
+DEFAULT_MAX_ZERO_DIST_PERCENTAGE                =   0.20
+DEFAULT_MAX_ZERO_MAPQ0_PERCENTAGE               =   0.20
+DEFAULT_MAX_UNMAPPED_PERCENTAGE                 =   0.10
 
 def saturation(x, V, K):
     '''Computes non-duplicate read count given x reads and parameters V and K.
@@ -95,22 +99,30 @@ class HiCQC(object):
             self.qc_purpose = 'Genome Scaffolding'
 
         if thresholds_file is None:
-            self.min_long_contact_percentage    =   DEFAULT_MIN_LONG_CONTACT_PERCENTAGE
-            self.min_useful_contact_percentage  =   DEFAULT_MIN_USEFUL_CONTACT_PERCENTAGE
-            self.min_same_strand_percentage     =   DEFAULT_MIN_SAME_STRAND_PERCENTAGE
-            self.max_dupe_percentage            =   DEFAULT_MAX_DUPE_PERCENTAGE
-            self.max_zero_mapq_percentage       =   DEFAULT_MAX_ZERO_MAPQ_PERCENTAGE
-            self.max_unmapped_percentage        =   DEFAULT_MAX_UNMAPPED_PERCENTAGE
+            self.min_same_strand_hq_percentage              =   DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE
+            self.min_informative_read_pairs_percentage      =   DEFAULT_MIN_INFORMATIVE_READ_PAIRS_PERCENTAGE
+            self.max_noninformative_read_pair_percentage    =   DEFAULT_MAX_NONINFORMATIVE_READ_PAIR_PERCENTAGE
+            self.min_long_contact_percentage                =   DEFAULT_MIN_LONG_CONTACT_PERCENTAGE
+            self.min_intercontig_contact_percentage         =   DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE
+            self.min_usable_reads_per_contig                =   DEFAULT_MIN_USABLE_READS_PER_CONTIG
+            self.max_dupe_percentage                        =   DEFAULT_MAX_DUPE_PERCENTAGE
+            self.max_zero_dist_percentage                   =   DEFAULT_MAX_ZERO_DIST_PERCENTAGE
+            self.max_zero_mapq0_percentage                  =   DEFAULT_MAX_ZERO_MAPQ0_PERCENTAGE
+            self.max_unmapped_percentage                    =   DEFAULT_MAX_UNMAPPED_PERCENTAGE
         else:
             import json
             with open(thresholds_file) as f:
                 thresholds = json.load(f)
-            self.min_long_contact_percentage    =   float(thresholds[sample_type]['MIN_LONG_CONTACT_PERCENTAGE'])
-            self.min_useful_contact_percentage  =   float(thresholds[sample_type]['MIN_USEFUL_CONTACT_PERCENTAGE'])
-            self.min_same_strand_percentage     =   float(thresholds[sample_type]['MIN_SAME_STRAND_PERCENTAGE'])
-            self.max_dupe_percentage            =   float(thresholds[sample_type]['MAX_DUPE_PERCENTAGE'])
-            self.max_zero_mapq_percentage       =   float(thresholds[sample_type]['MAX_ZERO_MAPQ_PERCENTAGE'])
-            self.max_unmapped_percentage        =   float(thresholds[sample_type]['MAX_UNMAPPED_PERCENTAGE'])
+            self.min_same_strand_hq_percentage              =   float(thresholds[sample_type]['MIN_SAME_STRAND_HQ_PERCENTAGE'])
+            self.min_informative_read_pairs_percentage      =   float(thresholds[sample_type]['MIN_INFORMATIVE_READ_PAIRS_PERCENTAGE'])
+            self.max_noninformative_read_pair_percentage    =   float(thresholds[sample_type]['MAX_NONINFORMATIVE_READ_PAIR_PERCENTAGE'])
+            self.min_long_contact_percentage                =   float(thresholds[sample_type]['MIN_LONG_CONTACT_PERCENTAGE'])
+            self.min_intercontig_contact_percentage         =   float(thresholds[sample_type]['MIN_INTERCONTIG_CONTACT_PERCENTAGE'])
+            self.min_usable_reads_per_contig                =   float(thresholds[sample_type]['MIN_USABLE_READS_PER_CONTIG'])
+            self.max_dupe_percentage                        =   float(thresholds[sample_type]['MAX_DUPE_PERCENTAGE'])
+            self.max_zero_dist_percentage                   =   float(thresholds[sample_type]['MAX_ZERO_DIST_PERCENTAGE'])
+            self.max_zero_mapq0_percentage                  =   float(thresholds[sample_type]['MAX_ZERO_MAPQ0_PERCENTAGE'])
+            self.max_unmapped_percentage                    =   float(thresholds[sample_type]['MAX_UNMAPPED_PERCENTAGE'])
 
         self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
         self.per_pair_metrics = set(['intercontig_pairs',
@@ -132,21 +144,28 @@ class HiCQC(object):
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
         self.to_percents =    {
+                               # Top Table
+                               'perc_pairs_on_same_strand_hq': ('pairs_on_same_strand_hq', 'pairs_intracontig_hq'),
+                               'perc_informative_read_pairs': ('proximo_usable_rp', 'total_read_pairs'),
+                               'perc_noninformative_read_pairs': ('noninformative_read_pairs', 'total_read_pairs'),
+                               # Other Good Metrics
+                               'perc_pairs_intra_hq_gt10kbp': ('pairs_intracontig_hq_gt10kbp', 'pairs_intracontig_hq'),
+                               'perc_intercontig_pairs_hq_gt10kbp': ('pairs_intercontig_hq_gt10kbp', 'total_read_pairs_hq'),
+                               # Usable reads number is in self.to_round
+                               # Noninformative Read Breakdown
+                               'perc_duplicate_reads': ('duplicate_reads', 'total_reads'),
                                'perc_zero_dist_pairs': ('zero_dist_pairs', 'total_read_pairs'),
+                               'perc_unmapped_reads': ('unmapped_reads', 'total_reads'),
+                               'perc_mapq0_reads': ('mapq0_reads', 'total_reads'),
+                               # Extended Metrics
                                'perc_pairs_greater_10k': ('pairs_greater_10k', 'total_read_pairs'),
                                'perc_pairs_greater_10k_on_contigs_greater_10k': ('pairs_greater_10k_on_contigs_greater_10k', 'pairs_on_contigs_greater_10k'),
-                               'perc_pairs_intra_hq_gt10kbp': ('pairs_intracontig_hq_gt10kbp', 'pairs_intracontig_hq'),
                                'perc_pairs_on_same_strand': ('pairs_on_same_strand', 'total_pairs_on_same_contig'),
-                               'perc_pairs_on_same_strand_hq': ('pairs_on_same_strand_hq', 'pairs_intracontig_hq'),
                                'perc_intercontig_pairs': ('intercontig_pairs', 'total_read_pairs'),
                                'perc_intercontig_pairs_hq': ('intercontig_pairs_hq', 'total_read_pairs_hq'),
-                               'perc_intercontig_pairs_hq_gt10kbp': ('pairs_intercontig_hq_gt10kbp', 'total_read_pairs_hq'),
                                'perc_split_reads': ('split_reads', 'total_reads'),
-                               'perc_duplicate_reads': ('duplicate_reads', 'total_reads'),
-                               'perc_mapq0_reads': ('mapq0_reads', 'total_reads'),
-                               'perc_unmapped_reads': ('unmapped_reads', 'total_reads'),
                                'perc_hq_rp': ('total_read_pairs_hq', 'total_read_pairs'),
-                               'perc_different_ref_stub_pairs': ('different_ref_stub_pairs', 'total_read_pairs'),
+                               'perc_different_ref_stub_pairs': ('different_ref_stub_pairs', 'total_read_pairs')
                                }
         self.to_round = set([
                              'proximo_usable_rp_per_ctg_gt_5k',
@@ -278,6 +297,9 @@ class HiCQC(object):
         self.update_read_stats(a)
         self.update_read_stats(b)
 
+        if self.is_noninformative_read_pair(a, b):
+            self.stats['noninformative_read_pairs'] += 1
+
         if not a.is_unmapped and not b.is_unmapped:
             self.update_mapped_pair_stats(a, b)
 
@@ -351,6 +373,10 @@ class HiCQC(object):
                 self.stats['zero_dist_pairs'] += 1
             if a.reference_name in self.contigs_greater_10k:
                 self.stats['pairs_on_contigs_greater_10k'] += 1
+                if is_high_qual_pair:
+                    self.stats['pairs_on_contigs_greater_10k_hq'] += 1
+                    if dist > 10000:
+                        self.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] += 1
                 if dist > 10000:
                     self.stats['pairs_greater_10k_on_contigs_greater_10k'] += 1
 
@@ -381,6 +407,19 @@ class HiCQC(object):
                         for ed in self.edist_stats:
                             if edist <= ed:
                                 self.mapping_dict[min_size][mapq][ed] += 1
+
+    def is_noninformative_read_pair(self, a, b):
+        is_noninformative = False
+        if a.is_unmapped or b.is_unmapped:
+            is_noninformative = True
+        elif a.is_duplicate or b.is_duplicate:
+            is_noninformative = True
+        elif a.mapping_quality == 0 or b.mapping_quality == 0:
+            is_noninformative = True
+        elif a.reference_name == b.reference_name:
+            if abs(a.reference_start - b.reference_start) == 0:
+                is_noninformative = True
+        return is_noninformative
 
     def is_high_qual_pair(self, a, b):
         return min(a.mapping_quality, b.mapping_quality) >= 20 and \
@@ -648,13 +687,13 @@ class HiCQC(object):
                                       np.log10(max_dist),
                                       50),
                      log=True, edgecolor='black', color='red', normed=True)
-            ax.set_ylim(0.5, max(num_pairs * 2, 1))
+            ax.set_ylim(0.0, 1.0)
             plt.yscale('log', nonposy='clip')
             plt.xscale('log')
             plt.xlim(xmin=1)
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
-            plt.ylabel('Density of reads (log scale)')
+            plt.ylabel('Density of reads (density, log scale)')
             plt.tight_layout()
         else:
             plt.title('Warning: No read pair distribution to plot')
@@ -686,35 +725,58 @@ class HiCQC(object):
         else:
             raise ValueError('logical impossibility!')
 
-        if self.long_contacts:
-            self.long_contacts_html = '<span class="pass">{0}</span>'
-        else:
-            self.long_contacts_html = '<span class="fail">{0}</span>'
-
-        if self.useful_contacts:
-            self.useful_contacts_html = '<span class="pass">{0}</span>'
-        else:
-            self.useful_contacts_html = '<span class="fail">{0}</span>'
-
-        if self.same_strand_hq:
+        # driving metrics
+        if self.good_same_strand:
             self.same_strand_hq_html = '<span class="pass">{0}</span>'
         else:
             self.same_strand_hq_html = '<span class="fail">{0}</span>'
 
+        if self.good_informative_read_pairs:
+            self.informative_read_pairs_html = '<span class="pass">{0}</span>'
+        else:
+            self.informative_read_pairs_html = '<span class="fail">{0}</span>'
+
+        if not self.bad_noninformative_read_pairs:
+            self.noninformative_read_pairs_html = '<span class="pass">{0}</span>'
+        else:
+            self.noninformative_read_pairs_html = '<span class="fail">{0}</span>'
+
+        # other good metrics
+        if self.good_long_contacts:
+            self.long_contacts_html = '<span class="pass">{0}</span>'
+        else:
+            self.long_contacts_html = '<span class="fail">{0}</span>'
+
+        if self.good_intercontig_contacts:
+            self.intercontig_hq_contacts_html = '<span class="pass">{0}</span>'
+        else:
+            self.intercontig_hq_contacts_html = '<span class="fail">{0}</span>'
+
+        if self.good_usable_reads:
+            self.usable_hq_gt_5k_html = '<span class="pass">{0}</span>'
+        else:
+            self.usable_hq_gt_5k_html = '<span class="fail">{0}</span>'
+
+        # noninformative reads breakdown
         if not self.high_dupe:
             self.high_dupe_html = '<span class="pass">{0}</span>'
         else:
             self.high_dupe_html = '<span class="fail">{0}</span>'
 
-        if not self.many_zero_mapq_reads:
-            self.many_zero_mapq_reads_html = '<span class="pass">{0}</span>'
+        if not self.many_zero_dist_pairs:
+            self.many_zero_dist_pairs_html = '<span class="pass">{0}</span>'
         else:
-            self.many_zero_mapq_reads_html = '<span class="fail">{0}</span>'
+            self.many_zero_dist_pairs_html = '<span class="fail">{0}</span>'
 
         if not self.many_unmapped_reads:
             self.many_unmapped_reads_html = '<span class="pass">{0}</span>'
         else:
             self.many_unmapped_reads_html = '<span class="fail">{0}</span>'
+
+        if not self.many_mapq_zero_reads:
+            self.many_zero_mapq_reads_html = '<span class="pass">{0}</span>'
+        else:
+            self.many_zero_mapq_reads_html = '<span class="fail">{0}</span>'
 
     def pass_judgement(self):
         '''Pass judgement on the library according to certain mostly subjective ideas about what is good
@@ -727,17 +789,25 @@ class HiCQC(object):
             self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
-        # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
-        self.long_contacts   = self.stats['pairs_intracontig_hq_gt10kbp'] / self.stats['total_read_pairs_hq'] > self.min_long_contact_percentage
-        self.useful_contacts = self.stats['intercontig_pairs_hq']         / self.stats['total_read_pairs_hq'] > self.min_useful_contact_percentage
-        self.same_strand_hq  = self.stats['pairs_on_same_strand_hq']      / self.stats['total_read_pairs_hq'] > self.min_same_strand_percentage
-        self.high_dupe = self.stats['duplicate_reads']                    / self.stats['total_reads']         > self.max_dupe_percentage * self.allowed_dupe_percentage
-        self.many_zero_mapq_reads = self.stats['mapq0_reads']             / self.stats['total_reads']         > self.max_zero_mapq_percentage
-        self.many_unmapped_reads = self.stats['unmapped_reads']           / self.stats['total_reads']         > self.max_unmapped_percentage
+        # these metrics drive the subjective quality judgement
+        self.good_same_strand              = float(self.stats['pairs_on_same_strand_hq'])   / self.stats['pairs_intracontig_hq'] > self.min_same_strand_hq_percentage
+        self.good_informative_read_pairs   = float(self.stats['proximo_usable_rp'])         / self.stats['total_read_pairs']     > self.min_informative_read_pairs_percentage
+        self.bad_noninformative_read_pairs = float(self.stats['noninformative_read_pairs']) / self.stats['total_read_pairs']     > self.max_noninformative_read_pair_percentage
 
-        #print long_contacts, long_floor, useful_contacts, low_contiguity, many_zero_pairs, many_many_zero_pairs, high_dupe
-        self.judge_good = self.long_contacts and self.useful_contacts and self.same_strand_hq
-        self.judge_bad  = self.high_dupe or self.many_zero_mapq_reads or self.many_unmapped_reads
+        # other good metrics
+        self.good_long_contacts        = float(self.stats['pairs_greater_10k_on_contigs_greater_10k_hq']) / self.stats['pairs_on_contigs_greater_10k_hq'] > self.min_long_contact_percentage
+        self.good_intercontig_contacts = float(self.stats['pairs_intercontig_hq_gt10kbp'])                / self.stats['total_read_pairs_hq']             > self.min_intercontig_contact_percentage
+        self.good_usable_reads         = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k']) > self.min_usable_reads_per_contig
+
+        # noninformative read breakdown
+        # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
+        self.high_dupe = float(self.stats['duplicate_reads'])            / self.stats['total_reads']      > self.max_dupe_percentage * self.allowed_dupe_percentage
+        self.many_zero_dist_pairs = float(self.stats['zero_dist_pairs']) / self.stats['total_read_pairs'] > self.max_zero_dist_percentage
+        self.many_unmapped_reads  = float(self.stats['unmapped_reads'])  / self.stats['total_reads']      > self.max_unmapped_percentage
+        self.many_mapq_zero_reads = float(self.stats['mapq0_reads'])     / self.stats['total_reads']      > self.max_zero_mapq0_percentage
+
+        self.judge_good = self.good_same_strand and self.good_informative_read_pairs
+        self.judge_bad  = self.bad_noninformative_read_pairs
 
         self.html_from_judgement()
 
@@ -774,12 +844,16 @@ class HiCQC(object):
                             'extrapolated_dup_rate': (extrap_dup_rate, '{:.2f}%'),
                             'judgment': (self.judge_html, '{}'),
                             'qc_purpose': (self.qc_purpose, '{}'),
+                            'same_strand_threshold': (100.0 * self.min_same_strand_hq_percentage, '{}'),
+                            'informative_read_pairs_threshold': (100.0 * self.min_informative_read_pairs_percentage, '{}'),
+                            'noninformative_read_pairs_threshold': (100.0 * self.max_noninformative_read_pair_percentage, '{}'),
                             'long_contacts_threshold': (100.0 * self.min_long_contact_percentage, '{}'),
-                            'useful_contacts_threshold': (100.0 * self.min_useful_contact_percentage, '{}'),
-                            'same_strand_threshold': (100.0 * self.min_same_strand_percentage, '{}'),
+                            'intercontig_hq_contacts_threshold': (100.0 * self.min_intercontig_contact_percentage, '{}'),
+                            'usable_hq_gt_5k_threshold': (self.min_usable_reads_per_contig, '{}'),
                             'high_dupe_threshold': (100.0 * self.max_dupe_percentage * self.allowed_dupe_percentage, '{}'),
-                            'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq_percentage, '{}'),
-                            'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}')
+                            'many_zero_dist_threshold': (100.0 * self.max_zero_dist_percentage, '{}'),
+                            'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
+                            'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
@@ -810,12 +884,19 @@ class HiCQC(object):
         for key, (value, fmt) in self.other_stats.items():
             self.out_stats[key] = fmt.format(value)
 
-        self.out_stats['long_contacts_html'] = self.long_contacts_html.format(self.out_stats['perc_pairs_intra_hq_gt10kbp'])
-        self.out_stats['useful_contacts_html'] = self.useful_contacts_html.format(self.out_stats['perc_intercontig_pairs_hq_gt10kbp'])
+        # driving stats
         self.out_stats['same_strand_hq_html'] = self.same_strand_hq_html.format(self.out_stats['perc_pairs_on_same_strand_hq'])
+        self.out_stats['informative_read_pairs_html'] = self.informative_read_pairs_html.format(self.out_stats['perc_informative_read_pairs'])
+        self.out_stats['noninformative_read_pairs_html'] = self.noninformative_read_pairs_html.format(self.out_stats['perc_noninformative_read_pairs'])
+        # other good metrics
+        self.out_stats['long_contacts_html'] = self.long_contacts_html.format(self.out_stats['perc_pairs_intra_hq_gt10kbp'])
+        self.out_stats['intercontig_hq_contacts_html'] = self.intercontig_hq_contacts_html.format(self.out_stats['perc_intercontig_pairs_hq_gt10kbp'])
+        self.out_stats['usable_hq_gt_5k_html'] = self.usable_hq_gt_5k_html.format(self.out_stats['proximo_usable_rp_hq_per_ctg_gt_5k'])
+        # noninformative breakdown
         self.out_stats['high_dupe_html'] = self.high_dupe_html.format(self.out_stats['perc_duplicate_reads'])
-        self.out_stats['many_zero_mapq_reads_html'] = self.many_zero_mapq_reads_html.format(self.out_stats['perc_mapq0_reads'])
+        self.out_stats['many_zero_dist_pairs_html'] = self.many_zero_dist_pairs_html.format(self.out_stats['perc_zero_dist_pairs'])
         self.out_stats['many_unmapped_reads_html'] = self.many_unmapped_reads_html.format(self.out_stats['perc_unmapped_reads'])
+        self.out_stats['many_zero_mapq_reads_html'] = self.many_zero_mapq_reads_html.format(self.out_stats['perc_mapq0_reads'])
 
         self.out_stats['version'] = __version__
 

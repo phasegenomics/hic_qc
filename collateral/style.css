@@ -54,7 +54,7 @@ tr:nth-child(even) {
     background-color: #DDDDDD;
 }
 .small {
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .left {
@@ -76,7 +76,7 @@ tr:nth-child(even) {
 }
 
 .pass, .fail, .low-signal, .mixed-results {
-  padding: 3px 6px;
+  padding: 1px 6px;
   font-weight: bold;
   color: black;
 }
@@ -90,7 +90,7 @@ tr:nth-child(even) {
 }
 
 .low-signal, .mixed-results {
-  background-color: #FFBB99;
+  background-color: #FFDD77;
 }
 
 .pagebreak { page-break-before: always; }

@@ -8,20 +8,54 @@
 | Label                                                    | Library statistics             | Expected values                               |
 | :-----------   |:-----------------:| --------------------:|
 | Subjective Hi-C library judgment    | {judgment}                     | See Judgment           |
-| HQ* RPs >10KB apart (CTGs >10KB)      | {long_contacts_html} | > {long_contacts_threshold}%                                  |
-| Intercontig HQ RPs (CTGs >10KB)    | {useful_contacts_html}       | > {useful_contacts_threshold}%                                   |
-| Same strand HQ RPs       | {same_strand_hq_html}    | > {same_strand_threshold}%                          |
-| Duplicate reads**     | {high_dupe_html}         | < {high_dupe_threshold}%                                        |
-| Zero map quality reads      | {many_zero_mapq_reads_html}             | < {many_zero_mapq_threshold}%                                        |
-| Unmapped reads         | {many_unmapped_reads_html}          | < {many_unmapped_threshold}%                               |
+| Same strand high-quality* (HQ) read pairs (RPs)       | {same_strand_hq_html}    | > {same_strand_threshold}%                          |
+| Informative RPs**   | {informative_read_pairs_html}       | > {informative_read_pairs_threshold}%                                   |
+| Noninformative RPs***    | {noninformative_read_pairs_html}       | <= {noninformative_read_pairs_threshold}%                                   |
 
 <div class="small center">
 <br />
 *High quality (HQ) read pairs have minimum mapping quality >= 20, maximum edit distance <= 5, and are not duplicates.<br>
-**If this quantity is zero, see duplicate read section below. If negative, there are too few reads sampled to estimate duplicates.<br>
+**Informative read pairs are read pairs which map to different contigs, have MAPQ > 0, and are not PCR duplicates.<br>
+***Noninformative read pairs are described in the table below. Note that the sum of informative and noninformative read pairs is not 100% because not every
+read can be categorized as informative or noninformative solely by examining its alignment properties.<br>
+</div>
+
+## Metrics Demonstrating Strong Proximity Signal
+
+| Label                                                    | Library statistics             | Expected values                               |
+| :-----------   |:-----------------:| --------------------:|
+| Fraction of HQ RPs >10KB apart (CTGs >10KB)*      | {long_contacts_html} | > {long_contacts_threshold}%                                  |
+| Fraction of HQ RPs Intercontig on CTGs >10KB**    | {intercontig_hq_contacts_html}       | > {intercontig_hq_contacts_threshold}%                                   |
+| Clustering usable HQ reads per contig (CTGs >5KB)***         | {usable_hq_gt_5k_html}          | > {usable_hq_gt_5k_threshold}                               |
+
+<div class="small center">
+<br />
+*The proportion of <em>read pairs that span at least 10kbp</em>, out of all read pairs that map (a) with high-quality, (b) to the same contig, (c) where that contig is at least 10kbp long.<br>
+**The proportion of <em>read pairs mapping to two different contigs each greater than 10kbp</em>, out of all read pairs that map with high-quality.<br>
+***The average number of usable high-quality read pairs per contig, for contigs greater than 5kbp. Read pairs are "usable" if they map (a) with high-quality, (b) to different contigs, (c) where each of 
+those contigs are greater than 5kbp and (c) both mappings are high-quality.<br>
 <br />
 See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 </div>
+
+## Noninformative Read Pair Breakdown
+
+| Label                                                    | Library statistics             | Expected values                               |
+| :-----------   |:-----------------:| --------------------:|
+| Duplicate reads     | {high_dupe_html}         | < {high_dupe_threshold}%                                        |
+| Zero map distance read pairs      | {many_zero_dist_pairs_html}             | <= {many_zero_dist_threshold}%                                        |
+| Zero MAPQ reads      | {many_zero_mapq_reads_html}             | <= {many_zero_mapq_threshold}%                                        |
+| Unmapped reads         | {many_unmapped_reads_html}          | <= {many_unmapped_threshold}%                               |
+
+<div class="small center">
+<br />
+Because noninformative reads can belong to more than one category, these numbers may sum to a value larger than the overall noninformative read pair amount at the top of the report.<br>
+<br />
+See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
+</div>
+
+
+<div class="pagebreak"> </div>
 
 ## Assembly Statistics
 
@@ -34,49 +68,27 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | CTGs > 10KB                  | {contigs_greater_10k} |
 | CTGs > 5KB                   | {contigs_greater_5k}  |
 
-## Library Statistics
+## Extended Library Statistics
 
-| Label                                                    | Library statistics             | Expected values                               |
-| :-----------                                             | -----------------:| --------------------:|
-| Total read pairs (RPs) analyzed                          | {total_read_pairs}             | N/A                                           |
-| High quality (HQ) RPs                                    | {perc_hq_rp}                   | N/A                                           |
-| RPs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                                    |
-| RPs >10KB apart (CTGs >10KB)                             | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%                                   |
-| Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
-| Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
-| Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
-| Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
-| Zero-distance RPs                                        | {perc_zero_dist_pairs}         | 0-20%                                        |
-| Duplicate reads (extrapolated)*                          | {extrapolated_dup_rate}        | 0-50%                               |
-</center>
-
-<div class="small center">
-<br />
-*Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
-<br />
-See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
-</div>
-
-<div class="pagebreak"> </div>
-
-## Library statistics (extended)
 <center>
 
 | Label                                                    | Library statistics             | Expected values                               |
 | :-----------                                             | --------------------:| --------------------:|
+| Total read pairs (RPs) analyzed                          | {total_read_pairs}             | N/A                                           |
+| High quality (HQ) RPs                                    | {perc_hq_rp}                   | N/A                                           |
 | RPs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                     |
 | RPs >10KB apart (CTGs >10KB)                             | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%    |
 | Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
 | Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
 | Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
-| Zero-distance RPs                                        | {perc_zero_dist_pairs}         | 0-20%                                        |
-| Zero map quality reads                                   | {perc_mapq0_reads}             | 0-10%                                        |
-| Duplicate reads (extrapolated)****                          | {extrapolated_dup_rate}        | 0-50%                               |
+| Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
+| Duplicate reads (extrapolated)*                          | {extrapolated_dup_rate}        | 0-50%                               |
 </center>
 
-<div class="small left">
-****Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
+<div class="small center">
+*Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
 </div>
+
 <div class="pagebreak"> </div>
 
 ## Aligned mate distance histograms
