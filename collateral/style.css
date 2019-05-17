@@ -90,7 +90,7 @@ tr:nth-child(even) {
 }
 
 .low-signal, .mixed-results {
-  background-color: #FFBB99;
+  background-color: #FFDD77;
 }
 
 .pagebreak { page-break-before: always; }
