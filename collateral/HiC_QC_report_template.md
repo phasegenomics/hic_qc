@@ -10,7 +10,7 @@
 | Subjective Hi-C library judgment    | {judgment}                     | See Judgment           |
 | Same strand high-quality* (HQ) read pairs (RPs)       | {same_strand_hq_html}    | > {same_strand_threshold}%                          |
 | Informative RPs**   | {informative_read_pairs_html}       | > {informative_read_pairs_threshold}%                                   |
-| Noninformative RPs***    | {noninformative_read_pairs_html}       | < {noninformative_read_pairs_threshold}%                                   |
+| Noninformative RPs***    | {noninformative_read_pairs_html}       | <= {noninformative_read_pairs_threshold}%                                   |
 
 <div class="small center">
 <br />
@@ -43,9 +43,9 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Label                                                    | Library statistics             | Expected values                               |
 | :-----------   |:-----------------:| --------------------:|
 | Duplicate reads     | {high_dupe_html}         | < {high_dupe_threshold}%                                        |
-| Zero map distance read pairs      | {many_zero_dist_pairs_html}             | < {many_zero_dist_threshold}%                                        |
-| Zero MAPQ reads      | {many_zero_mapq_reads_html}             | < {many_zero_mapq_threshold}%                                        |
-| Unmapped reads         | {many_unmapped_reads_html}          | < {many_unmapped_threshold}%                               |
+| Zero map distance read pairs      | {many_zero_dist_pairs_html}             | <= {many_zero_dist_threshold}%                                        |
+| Zero MAPQ reads      | {many_zero_mapq_reads_html}             | <= {many_zero_mapq_threshold}%                                        |
+| Unmapped reads         | {many_unmapped_reads_html}          | <= {many_unmapped_threshold}%                               |
 
 <div class="small center">
 <br />
