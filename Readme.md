@@ -28,11 +28,17 @@ This script has been verified on MacOSX, Ubuntu Linux, and Amazon Linux.
 Some dependencies such as matplotlib don't play nicely with all pythons, such that some pythons in e.g. virtualenvs may not work. In that specific case you can just deactivate the virtualenv.
 
 ### Conda installation
-We have also successfully installed requirements using the following conda command (replace X and Y with desired python version):
+To instead install using conda, run the following commands in sequence (assumes you already have conda and git installed):
+```
+git clone https://github.com/phasegenomics/hic_qc.git
+cd hic_qc/
+conda env create -n hic_qc --file env.yml
+```
 
-`conda env create -n hic_qc --file env.yml`
-
-This will create a python 3.6 environment and automatically install the `wkhtmltopdf` dependency.
+This will create a python 3.6 environment and automatically install the `wkhtmltopdf` dependency. You may need to run a `conda init` command to set up your shell if you haven't previously initialized conda in your shell. You would then run:
+```
+conda activate hic_qc
+```
 
 To use a different python version, run:
 ```
