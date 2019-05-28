@@ -29,14 +29,16 @@ Some dependencies such as matplotlib don't play nicely with all pythons, such th
 
 ### Conda installation
 To instead install using conda, run the following commands in sequence (assumes you already have conda and git installed):
-
 ```
 git clone https://github.com/phasegenomics/hic_qc.git
 cd hic_qc/
 conda env create -n hic_qc --file env.yml
 ```
 
-This will create a python 3.6 environment and automatically install the `wkhtmltopdf` dependency.
+This will create a python 3.6 environment and automatically install the `wkhtmltopdf` dependency. You may need to run a `conda init` command to set up your shell if you haven't previously initialized conda in your shell. You would then run:
+```
+conda activate hic_qc
+```
 
 To use a different python version, run:
 ```
