@@ -234,6 +234,8 @@ class HiCQC(object):
                 if read.query_name == a.query_name:
                     b = read
                     self.process_pair(a, b)
+                    a = None
+                    b = None
                 else:
                     a = read
 
