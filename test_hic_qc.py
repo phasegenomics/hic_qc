@@ -32,6 +32,7 @@ class MyTestCase(unittest.TestCase):
         count_diff_refname_stub = False
 
         QC = hic_qc.HiCQC()
+        QC.logger.setLevel("ERROR")
         QC.parse_bam(bamfile, max_read_pairs=num_reads)
         self.QC = QC
         self.stats = QC.stats
@@ -480,6 +481,21 @@ class MyTestCase(unittest.TestCase):
         self.assertFalse(QCtmp.many_mapq_zero_reads)
         self.assertFalse(QCtmp.judge_good)
         self.assertTrue(QCtmp.judge_bad)
+
+    def test_empty_bam(self):
+        QC = hic_qc.HiCQC()
+        QC.logger.setLevel("ERROR")
+        bamfile = "collateral/abc_test.empty.bam"
+        QC.parse_bam(bamfile, max_read_pairs=1000)
+        QC.plot_dup_saturation()
+        QC.pass_judgement()
+        QC.html_from_judgement()
+        QC.plot_histograms()
+        QC.stringify_stats()
+        QC.log_stats()
+        QC.write_stat_table()
+        QC.write_dists_file()
+        QC.write_pdf_report(quiet=True)
 
 if __name__ == '__main__':
     unittest.main()
