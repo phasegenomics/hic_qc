@@ -54,7 +54,7 @@ tr:nth-child(even) {
     background-color: #DDDDDD;
 }
 .small {
-  font-size: 8px;
+  font-size: 9px;
 }
 
 .left {
@@ -76,21 +76,21 @@ tr:nth-child(even) {
 }
 
 .pass, .fail, .low-signal, .mixed-results {
-  padding: 3px 6px;
+  padding: 1px 6px;
   font-weight: bold;
-  color: white;
+  color: black;
 }
 
 .pass {
-  background-color: green;
+  background-color: #AAFFAA;
 }
 
 .fail {
-  background-color: red;
+  background-color: #FFAAAA;
 }
 
 .low-signal, .mixed-results {
-  background-color: orange;
+  background-color: #FFDD77;
 }
 
 .pagebreak { page-break-before: always; }
