@@ -30,10 +30,10 @@ from _version import get_versions
 __version__ = get_versions()['version']
 
 # default QC thresholds if there is no thresholds file
-DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.05
+DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.015
 DEFAULT_MIN_INFORMATIVE_READ_PAIRS_PERCENTAGE   =   0.05
 DEFAULT_MAX_NONINFORMATIVE_READ_PAIR_PERCENTAGE =   0.50
-DEFAULT_MIN_LONG_CONTACT_PERCENTAGE             =   0.025
+DEFAULT_MIN_LONG_CONTACT_PERCENTAGE             =   0.03
 DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE      =   0.025
 DEFAULT_MIN_USABLE_READS_PER_CONTIG             =   600
 DEFAULT_MAX_DUPE_PERCENTAGE                     =   0.40
@@ -1046,7 +1046,7 @@ class HiCQC(object):
             ],
             'no-outline': None
         }
-        
+
         if quiet:
             options["quiet"] = ""
 

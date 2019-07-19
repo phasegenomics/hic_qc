@@ -27,8 +27,11 @@ import pysam
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
+        self.dirname = os.path.dirname(__file__)
+        self.collateral_dir = self.dirname + "/collateral/"
+        self.input_dir = self.collateral_dir + "input/"
         num_reads = 1000
-        bamfile = "collateral/abc_test.bam"
+        bamfile = self.input_dir + "abc_test.bam"
         count_diff_refname_stub = False
 
         QC = hic_qc.HiCQC()
@@ -271,7 +274,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 5% - exactly on the threshold fails
+        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5% - exactly on the threshold fails
         QCtmp.stats['proximo_usable_rp'] = 500 # 25%
         QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
         # other good metrics
@@ -345,7 +348,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
         QCtmp.stats['proximo_usable_rp'] = 100 # 5%
         QCtmp.stats['noninformative_read_pairs'] = 1000 # 50%
         # other good metrics
@@ -382,11 +385,11 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 11 # 5.5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 4 # 2%
         QCtmp.stats['proximo_usable_rp'] = 101 # 5.05%
         QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 16 # 2.67%
+        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 19 # 3.17%
         QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 26 # 2.6%
         QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 601
         # noninformative breakdown
@@ -419,7 +422,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 11 # 5.5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 4 # 2%
         QCtmp.stats['proximo_usable_rp'] = 101 # 5.05%
         QCtmp.stats['noninformative_read_pairs'] = 1000 # 50%
         # other good metrics
@@ -456,7 +459,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
         QCtmp.stats['proximo_usable_rp'] = 100 # 5%
         QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
         # other good metrics
@@ -485,7 +488,7 @@ class MyTestCase(unittest.TestCase):
     def test_empty_bam(self):
         QC = hic_qc.HiCQC()
         QC.logger.setLevel("ERROR")
-        bamfile = "collateral/abc_test.empty.bam"
+        bamfile = self.input_dir + "abc_test.empty.bam"
         QC.parse_bam(bamfile, max_read_pairs=1000)
         QC.plot_dup_saturation()
         QC.pass_judgement()
