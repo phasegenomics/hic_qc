@@ -17,6 +17,7 @@ import pysam
 import numpy as np
 import argparse
 import os
+import logging
 import matplotlib
 from collections import Counter
 matplotlib.use('Agg')
@@ -29,10 +30,10 @@ from _version import get_versions
 __version__ = get_versions()['version']
 
 # default QC thresholds if there is no thresholds file
-DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.05
+DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.015
 DEFAULT_MIN_INFORMATIVE_READ_PAIRS_PERCENTAGE   =   0.05
 DEFAULT_MAX_NONINFORMATIVE_READ_PAIR_PERCENTAGE =   0.50
-DEFAULT_MIN_LONG_CONTACT_PERCENTAGE             =   0.025
+DEFAULT_MIN_LONG_CONTACT_PERCENTAGE             =   0.03
 DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE      =   0.025
 DEFAULT_MIN_USABLE_READS_PER_CONTIG             =   600
 DEFAULT_MAX_DUPE_PERCENTAGE                     =   0.40
@@ -91,6 +92,9 @@ class HiCQC(object):
                  rp_stats=None, mq_stats=None, edist_stats=None):
         '''Initialize metrics for later extraction and conversion.
         '''
+        logging.basicConfig(format="[%(name)s - %(asctime)s] %(message)s", level=logging.INFO)
+        self.logger = logging.getLogger("hic_qc")
+
         self.sample_type = sample_type.lower()
         self.qc_purpose = 'Unknown'
         if self.sample_type == 'metagenome':
@@ -508,7 +512,7 @@ class HiCQC(object):
         outfile = self.paths['outfile_prefix'] + '.dup_saturation.png'
         self.paths['dup_sat_curve'] = outfile
 
-        if self.total_array[-1] < min_sample:
+        if self.total_array.size == 0 or self.total_array[-1] < min_sample:
             UserWarning('too few reads to estimate duplication rate (<{0})!!'.format(min_sample))
             fig, ax = plt.subplots(1)
             plt.title('Insufficient reads to estimate duplication rate!!!')
@@ -559,8 +563,8 @@ class HiCQC(object):
         non_dup_rate = None
 
         if target_x is not None:
-            print('At {} reads, estimated {:.0f} non-dup reads'.format(target_x, saturation(target_x, *params)))
-            print('True non-dup reads: {}'.format(target_y))
+            self.logger.info('At {} reads, estimated {:.0f} non-dup reads'.format(target_x, saturation(target_x, *params)))
+            self.logger.info('True non-dup reads: {}'.format(target_y))
             non_dup_rate = saturation(target_x, *params) / float(target_x)
             if target_y is not None:
                 plt.plot(target_x, target_y, 'bo')
@@ -583,7 +587,7 @@ class HiCQC(object):
         plt.savefig(outfile)
         plt.close()
 
-        print('Best V = {}, best K = {}'.format(self.stats['dup_sat_V'], self.stats['dup_sat_K']))
+        self.logger.info('Best V = {}, best K = {}'.format(self.stats['dup_sat_V'], self.stats['dup_sat_K']))
 
         return 0
 
@@ -790,21 +794,21 @@ class HiCQC(object):
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
         # these metrics drive the subjective quality judgement
-        self.good_same_strand              = float(self.stats['pairs_on_same_strand_hq'])   / self.stats['pairs_intracontig_hq'] > self.min_same_strand_hq_percentage
-        self.good_informative_read_pairs   = float(self.stats['proximo_usable_rp'])         / self.stats['total_read_pairs']     > self.min_informative_read_pairs_percentage
-        self.bad_noninformative_read_pairs = float(self.stats['noninformative_read_pairs']) / self.stats['total_read_pairs']     > self.max_noninformative_read_pair_percentage
+        self.good_same_strand              = float(self.stats['pairs_on_same_strand_hq'])   / max(self.stats['pairs_intracontig_hq'], 1) > self.min_same_strand_hq_percentage
+        self.good_informative_read_pairs   = float(self.stats['proximo_usable_rp'])         / max(self.stats['total_read_pairs'], 1)     > self.min_informative_read_pairs_percentage
+        self.bad_noninformative_read_pairs = float(self.stats['noninformative_read_pairs']) / max(self.stats['total_read_pairs'], 1)     > self.max_noninformative_read_pair_percentage
 
         # other good metrics
-        self.good_long_contacts        = float(self.stats['pairs_greater_10k_on_contigs_greater_10k_hq']) / self.stats['pairs_on_contigs_greater_10k_hq'] > self.min_long_contact_percentage
-        self.good_intercontig_contacts = float(self.stats['pairs_intercontig_hq_gt10kbp'])                / self.stats['total_read_pairs_hq']             > self.min_intercontig_contact_percentage
+        self.good_long_contacts        = float(self.stats['pairs_greater_10k_on_contigs_greater_10k_hq']) / max(self.stats['pairs_on_contigs_greater_10k_hq'], 1) > self.min_long_contact_percentage
+        self.good_intercontig_contacts = float(self.stats['pairs_intercontig_hq_gt10kbp'])                / max(self.stats['total_read_pairs_hq'], 1)             > self.min_intercontig_contact_percentage
         self.good_usable_reads         = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k']) > self.min_usable_reads_per_contig
 
         # noninformative read breakdown
         # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
-        self.high_dupe = float(self.stats['duplicate_reads'])            / self.stats['total_reads']      > self.max_dupe_percentage * self.allowed_dupe_percentage
-        self.many_zero_dist_pairs = float(self.stats['zero_dist_pairs']) / self.stats['total_read_pairs'] > self.max_zero_dist_percentage
-        self.many_unmapped_reads  = float(self.stats['unmapped_reads'])  / self.stats['total_reads']      > self.max_unmapped_percentage
-        self.many_mapq_zero_reads = float(self.stats['mapq0_reads'])     / self.stats['total_reads']      > self.max_zero_mapq0_percentage
+        self.high_dupe = float(self.stats['duplicate_reads'])            / max(self.stats['total_reads'], 1)      > self.max_dupe_percentage * self.allowed_dupe_percentage
+        self.many_zero_dist_pairs = float(self.stats['zero_dist_pairs']) / max(self.stats['total_read_pairs'], 1) > self.max_zero_dist_percentage
+        self.many_unmapped_reads  = float(self.stats['unmapped_reads'])  / max(self.stats['total_reads'], 1)      > self.max_unmapped_percentage
+        self.many_mapq_zero_reads = float(self.stats['mapq0_reads'])     / max(self.stats['total_reads'], 1)      > self.max_zero_mapq0_percentage
 
         self.judge_good = self.good_same_strand and self.good_informative_read_pairs
         self.judge_bad  = self.bad_noninformative_read_pairs
@@ -900,8 +904,8 @@ class HiCQC(object):
 
         self.out_stats['version'] = __version__
 
-    def print_stats(self, count_diff_refname_stub=False):
-        '''Print statistical summary to standard out.
+    def log_stats(self, count_diff_refname_stub=False):
+        '''Log statistical summary.
 
         Uses:
             self.paths ({str: str}): Mapping of names to paths.
@@ -909,79 +913,79 @@ class HiCQC(object):
             count_diff_refname_stub (bool): Whether we are counting the contig name stub differences.
         '''
 
-        print('Histograms written to:', self.paths['long_hist'], self.paths['short_hist'], self.paths['log_log_hist'])
-        print('Duplicate saturation curve written to: {}'.format(self.paths['dup_sat_curve']))
+        ('Histograms written to:', self.paths['long_hist'], self.paths['short_hist'], self.paths['log_log_hist'])
+        self.logger.info('Duplicate saturation curve written to: {}'.format(self.paths['dup_sat_curve']))
 
-        print('Number of contigs (more is harder):')
-        print(self.out_stats['contigs'])
+        self.logger.info('Number of contigs (more is harder):')
+        self.logger.info(self.out_stats['contigs'])
 
-        print('Number of contigs greater than 10KB (longer contigs are better):')
-        print(self.out_stats['contigs_greater_10k'])
+        self.logger.info('Number of contigs greater than 10KB (longer contigs are better):')
+        self.logger.info(self.out_stats['contigs_greater_10k'])
 
-        print('N50 of input assembly (longer contigs are better):')
-        print(self.out_stats['N50'])
+        self.logger.info('N50 of input assembly (longer contigs are better):')
+        self.logger.info(self.out_stats['N50'])
 
-        print('Length of input assembly (bigger is harder):')
-        print(self.out_stats['total_length'])
+        self.logger.info('Length of input assembly (bigger is harder):')
+        self.logger.info(self.out_stats['total_length'])
 
-        print('Counts of zero distances (many is a sign of bad prep):')
-        print(self.out_stats['zero_dist_pairs'],
-              'of total',
+        self.logger.info('Counts of zero distances (many is a sign of bad prep):')
+        self.logger.info('{} of total {} {}%'.format(
+              self.out_stats['zero_dist_pairs'],
               self.out_stats['total_read_pairs'],
-              self.out_stats['perc_zero_dist_pairs']
+              self.out_stats['perc_zero_dist_pairs'])
               )
 
-        print('Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):')
-        print(self.out_stats['pairs_greater_10k'],
-              'of total',
+        self.logger.info('Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):')
+        self.logger.info('{} of total {} {}%'.format(
+              self.out_stats['pairs_greater_10k'],
               self.out_stats['total_read_pairs'],
-              self.out_stats['perc_pairs_greater_10k']
+              self.out_stats['perc_pairs_greater_10k'])
               )
 
-        print('Proportion of reads mapping to contigs > 10 Kbp with inserts > 10 Kbp:')
-        print(self.out_stats['pairs_greater_10k_on_contigs_greater_10k'],
-              'of total',
+        self.logger.info('Proportion of reads mapping to contigs > 10 Kbp with inserts > 10 Kbp:')
+        self.logger.info('{} of total {} {}%'.format(
+              self.out_stats['pairs_greater_10k_on_contigs_greater_10k'],
               self.out_stats['pairs_on_contigs_greater_10k'],
-              self.out_stats['perc_pairs_greater_10k_on_contigs_greater_10k']
+              self.out_stats['perc_pairs_greater_10k_on_contigs_greater_10k'])
               )
 
-        print('Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):')
-        print(self.out_stats['intercontig_pairs'],
-              'of total',
+        self.logger.info('Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):')
+        self.logger.info('{} of total {} {}%'.format(
+              self.out_stats['intercontig_pairs'],
               self.out_stats['total_read_pairs'],
-              self.out_stats['perc_intercontig_pairs']
+              self.out_stats['perc_intercontig_pairs'])
               )
 
-        print('Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):')
-        print(self.out_stats['split_reads'],
-              'of total',
+        self.logger.info('Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):')
+        self.logger.info('{} of total {} {}%'.format(
+              self.out_stats['split_reads'],
               self.stats['total_reads'],
-              self.out_stats['perc_split_reads']
+              self.out_stats['perc_split_reads'])
               )
 
-        print('Count of MAPQ zero reads (bad, ambiguously mapped):')
-        print(self.out_stats['mapq0_reads'],
-              'of total',
+        self.logger.info('Count of MAPQ zero reads (bad, ambiguously mapped):')
+        self.logger.info('{} of total {} {}%'.format(
+              self.out_stats['mapq0_reads'],
               self.out_stats['total_reads'],
-              self.out_stats['perc_mapq0_reads']
+              self.out_stats['perc_mapq0_reads'])
               )
 
-        print('Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):')
-        print(self.out_stats['duplicate_reads'],
-              'of total',
+        self.logger.info('Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):')
+        self.logger.info('{} of total {} {}%'.format(
+              self.out_stats['duplicate_reads'],
               self.out_stats['total_reads'],
-              self.out_stats['perc_duplicate_reads']
+              self.out_stats['perc_duplicate_reads'])
               )
 
-        print('Percent duplicated at {} reads: {} (-1 if insufficient to estimate)'.format(self.out_stats['target_read_total'], self.out_stats['extrapolated_dup_rate']))
+        self.logger.info('Percent duplicated at {} reads: {} (-1 if insufficient to estimate)'.format(self.out_stats['target_read_total'], self.out_stats['extrapolated_dup_rate']))
 
         if count_diff_refname_stub:
-            print('Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad ' \
+            self.logger.info('Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad ' \
                   'prep potentially):')
-            print(self.out_stats['different_ref_stub_pairs'],
-                  'of total',
+            self.logger.info('{} of total {} {}%'.format(
+                  self.out_stats['different_ref_stub_pairs'],
                   self.out_stats['total_read_pairs'],
-                  self.out_stats['perc_different_ref_stub_pairs']
+                  self.out_stats['perc_different_ref_stub_pairs'])
                   )
 
     def write_stat_table(self):
@@ -1020,7 +1024,7 @@ class HiCQC(object):
             for k, v in self.dists.items():
                 print(k, v, sep="\t", file=outfile)
 
-    def write_pdf_report(self):
+    def write_pdf_report(self, quiet=False):
         '''Make the pdf report using the template.
         Requires markdown template in the collateral directory of hic_qc.
 
@@ -1043,6 +1047,9 @@ class HiCQC(object):
             'no-outline': None
         }
 
+        if quiet:
+            options["quiet"] = ""
+
         template_path = os.path.join(self.paths['script_dir'], "collateral", "HiC_QC_report_template.md")
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
 
@@ -1055,7 +1062,7 @@ class HiCQC(object):
         with open(template_path) as template_fh:
             template_string = template_fh.read()
             sub_str = template_string.format(**self.out_stats)  # splat the statistics and path into the markdown, render as html
-            html = md.markdown(sub_str, extensions=['tables', 'nl2br'])
+            html = md.markdown(sub_str, extensions=['markdown.extensions.tables', 'markdown.extensions.nl2br'])
 
             # write out just html
             with open(self.paths['outfile_prefix'] + "_qc_report.html", 'w') as html_out:
@@ -1115,9 +1122,9 @@ if __name__ == "__main__":
 
     QC = HiCQC(outfile_prefix=args.outfile_prefix, sample_type=args.sample_type, thresholds_file=args.thresholds, rp_stats=args.rp_stats, mq_stats=args.mq_stats, edist_stats=args.edist_stats)
     if args.num_reads != -1:
-        print('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
+        self.logger.info('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
     else:
-        print('parsing all read pairs in bam file {} to QC Hi-C library quality'.format(args.bam_file))
+        self.logger.info('parsing all read pairs in bam file {} to QC Hi-C library quality'.format(args.bam_file))
 
     QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
     QC.plot_dup_saturation()
@@ -1125,7 +1132,7 @@ if __name__ == "__main__":
     QC.html_from_judgement()
     QC.plot_histograms()
     QC.stringify_stats()
-    QC.print_stats()
+    QC.log_stats()
     QC.write_stat_table()
     QC.write_dists_file()
     QC.write_pdf_report()

@@ -27,11 +27,15 @@ import pysam
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
+        self.dirname = os.path.dirname(__file__)
+        self.collateral_dir = self.dirname + "/collateral/"
+        self.input_dir = self.collateral_dir + "input/"
         num_reads = 1000
-        bamfile = "collateral/abc_test.bam"
+        bamfile = self.input_dir + "abc_test.bam"
         count_diff_refname_stub = False
 
         QC = hic_qc.HiCQC()
+        QC.logger.setLevel("ERROR")
         QC.parse_bam(bamfile, max_read_pairs=num_reads)
         self.QC = QC
         self.stats = QC.stats
@@ -105,9 +109,11 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(QCtmp.stats['split_reads'], 1)
 
     def test_python_version(self):
-        if "TRAVIS_PYTHON_VERSION" in os.environ:
+        # Confirms that PYTHON version in Travis CI env matches expectation
+        if "PYTHON" in os.environ:
+            expected_python = os.environ["PYTHON"] if os.environ["PYTHON"] != "default" else "3.6"
             version_string = "{}.{}".format(*sys.version_info)
-            self.assertEqual(version_string, os.environ["TRAVIS_PYTHON_VERSION"])
+            self.assertEqual(version_string, expected_python)
         else:
             return True
 
@@ -270,7 +276,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 5% - exactly on the threshold fails
+        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5% - exactly on the threshold fails
         QCtmp.stats['proximo_usable_rp'] = 500 # 25%
         QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
         # other good metrics
@@ -344,7 +350,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
         QCtmp.stats['proximo_usable_rp'] = 100 # 5%
         QCtmp.stats['noninformative_read_pairs'] = 1000 # 50%
         # other good metrics
@@ -381,11 +387,11 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 11 # 5.5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 4 # 2%
         QCtmp.stats['proximo_usable_rp'] = 101 # 5.05%
         QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 16 # 2.67%
+        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 19 # 3.17%
         QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 26 # 2.6%
         QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 601
         # noninformative breakdown
@@ -418,7 +424,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 11 # 5.5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 4 # 2%
         QCtmp.stats['proximo_usable_rp'] = 101 # 5.05%
         QCtmp.stats['noninformative_read_pairs'] = 1000 # 50%
         # other good metrics
@@ -455,7 +461,7 @@ class MyTestCase(unittest.TestCase):
         QCtmp.stats['pairs_intracontig_hq'] = 200
         QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 10 # 5%
+        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
         QCtmp.stats['proximo_usable_rp'] = 100 # 5%
         QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
         # other good metrics
@@ -480,6 +486,21 @@ class MyTestCase(unittest.TestCase):
         self.assertFalse(QCtmp.many_mapq_zero_reads)
         self.assertFalse(QCtmp.judge_good)
         self.assertTrue(QCtmp.judge_bad)
+
+    def test_empty_bam(self):
+        QC = hic_qc.HiCQC()
+        QC.logger.setLevel("ERROR")
+        bamfile = self.input_dir + "abc_test.empty.bam"
+        QC.parse_bam(bamfile, max_read_pairs=1000)
+        QC.plot_dup_saturation()
+        QC.pass_judgement()
+        QC.html_from_judgement()
+        QC.plot_histograms()
+        QC.stringify_stats()
+        QC.log_stats()
+        QC.write_stat_table()
+        QC.write_dists_file()
+        QC.write_pdf_report(quiet=True)
 
 if __name__ == '__main__':
     unittest.main()

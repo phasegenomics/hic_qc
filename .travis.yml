@@ -1,11 +1,12 @@
-language: python
-python:
-  - "2.7"
-  - "3.5"
-  - "3.6"
+language: generic
+env:
+  - PYTHON="2.7"
+  - PYTHON="3.5"
+  - PYTHON="3.6"
+  - PYTHON="default"
 before_install:
     - sudo apt-get update
-    - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+    - if [[ "$PYTHON" == "2.7" ]]; then
         wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh;
       else
         wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
@@ -20,9 +21,13 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
   # Replace dep1 dep2 ... with your dependencies
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pysam numpy scipy matplotlib wkhtmltopdf pdfkit markdown
+  - if [[ "$PYTHON" == "default" ]]; then
+      conda env create -n test-environment --file env.yml;
+    else
+      conda create -q -n test-environment python=$PYTHON pysam numpy scipy matplotlib wkhtmltopdf pdfkit markdown;
+    fi
   - source activate test-environment
   - python --version
   - python setup.py install
 script:
-  - python test_hic_qc.py
+  - python -m unittest discover tests
