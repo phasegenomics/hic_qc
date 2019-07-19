@@ -109,9 +109,10 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(QCtmp.stats['split_reads'], 1)
 
     def test_python_version(self):
-        if "TRAVIS_PYTHON_VERSION" in os.environ:
+        # Confirms that PYTHON version in Travis CI env matches expectation
+        if "PYTHON" in os.environ:
             version_string = "{}.{}".format(*sys.version_info)
-            self.assertEqual(version_string, os.environ["TRAVIS_PYTHON_VERSION"])
+            self.assertEqual(version_string, os.environ["PYTHON"])
         else:
             return True
 
