@@ -111,8 +111,9 @@ class MyTestCase(unittest.TestCase):
     def test_python_version(self):
         # Confirms that PYTHON version in Travis CI env matches expectation
         if "PYTHON" in os.environ:
+            expected_python = os.environ["PYTHON"] if os.environ["PYTHON"] != "default" else "3.6"
             version_string = "{}.{}".format(*sys.version_info)
-            self.assertEqual(version_string, os.environ["PYTHON"])
+            self.assertEqual(version_string, expected_python)
         else:
             return True
 
