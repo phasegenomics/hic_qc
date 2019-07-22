@@ -216,6 +216,13 @@ class HiCQC(object):
         This method performs read pairing.
         '''
 
+        if max_read_pairs != -1:
+            self.logger.info('parsing the first {} read pairs in bam file {} \
+                             to QC Hi-C library quality'.format(max_read_pairs, bamfile))
+        else:
+            self.logger.info('parsing all read pairs in bam file {} \
+                             to QC Hi-C library quality'.format(max_read_pairs, bamfile))
+
         self.paths['bamfile'] = bamfile
         self.paths['bamname'] = os.path.basename(bamfile)
 
@@ -661,7 +668,7 @@ class HiCQC(object):
             ax.set_ylim(0.5, max(num_pairs * 2, 1))
             plt.yscale('log', nonposy='clip')
             plt.xscale('log')
-            plt.xlim(xmin=1)
+            plt.xlim(left=1)
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
             plt.ylabel('Number of reads (log scale)')
@@ -690,11 +697,11 @@ class HiCQC(object):
                      bins=np.logspace(np.log10(min_dist+1),
                                       np.log10(max_dist),
                                       50),
-                     log=True, edgecolor='black', color='red', normed=True)
-            ax.set_ylim(0.0, 1.0)
+                     log=True, edgecolor='black', color='red', density=True)
+            ax.set_ylim(0.0001, 1.0)
             plt.yscale('log', nonposy='clip')
             plt.xscale('log')
-            plt.xlim(xmin=1)
+            plt.xlim(left=1)
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig, log scale)')
             plt.ylabel('Density of reads (density, log scale)')
@@ -1121,10 +1128,10 @@ if __name__ == "__main__":
         os.makedirs(dirname)
 
     QC = HiCQC(outfile_prefix=args.outfile_prefix, sample_type=args.sample_type, thresholds_file=args.thresholds, rp_stats=args.rp_stats, mq_stats=args.mq_stats, edist_stats=args.edist_stats)
-    if args.num_reads != -1:
-        self.logger.info('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
-    else:
-        self.logger.info('parsing all read pairs in bam file {} to QC Hi-C library quality'.format(args.bam_file))
+    # if args.num_reads != -1:
+    #     QC.logger.info('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
+    # else:
+    #     QC.logger.info('parsing all read pairs in bam file {} to QC Hi-C library quality'.format(args.bam_file))
 
     QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
     QC.plot_dup_saturation()
