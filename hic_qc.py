@@ -217,11 +217,11 @@ class HiCQC(object):
         '''
 
         if max_read_pairs != -1:
-            self.logger.info('parsing the first {} read pairs in bam file {} \
-                             to QC Hi-C library quality'.format(max_read_pairs, bamfile))
+            self.logger.info('parsing the first {} read pairs in bam file {} '\
+                             'to QC Hi-C library quality'.format(max_read_pairs, bamfile))
         else:
-            self.logger.info('parsing all read pairs in bam file {} \
-                             to QC Hi-C library quality'.format(max_read_pairs, bamfile))
+            self.logger.info('parsing all read pairs in bam file {} '\
+                             'to QC Hi-C library quality'.format(max_read_pairs, bamfile))
 
         self.paths['bamfile'] = bamfile
         self.paths['bamname'] = os.path.basename(bamfile)
