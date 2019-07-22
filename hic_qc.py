@@ -1127,11 +1127,13 @@ if __name__ == "__main__":
     if dirname != '' and not os.path.exists(dirname):
         os.makedirs(dirname)
 
-    QC = HiCQC(outfile_prefix=args.outfile_prefix, sample_type=args.sample_type, thresholds_file=args.thresholds, rp_stats=args.rp_stats, mq_stats=args.mq_stats, edist_stats=args.edist_stats)
-    # if args.num_reads != -1:
-    #     QC.logger.info('parsing the first {} read pairs in bam file {} to QC Hi-C library quality'.format(args.num_reads, args.bam_file))
-    # else:
-    #     QC.logger.info('parsing all read pairs in bam file {} to QC Hi-C library quality'.format(args.bam_file))
+    QC = HiCQC(outfile_prefix=args.outfile_prefix,
+               sample_type=args.sample_type,
+               thresholds_file=args.thresholds,
+               rp_stats=args.rp_stats,
+               mq_stats=args.mq_stats,
+               edist_stats=args.edist_stats
+               )
 
     QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
     QC.plot_dup_saturation()
