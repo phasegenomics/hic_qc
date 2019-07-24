@@ -26,16 +26,20 @@ import hic_qc
 import pysam
 
 class MyTestCase(unittest.TestCase):
-    def setUp(self):
+    @classmethod
+    def setUpClass(self):
         self.dirname = os.path.dirname(__file__)
         self.collateral_dir = self.dirname + "/collateral/"
         self.input_dir = self.collateral_dir + "input/"
+        self.output_dir = self.collateral_dir + "output/"
+        self.output_prefix = self.output_dir + "Read_mate_dist"
         num_reads = 1000
         bamfile = self.input_dir + "abc_test.bam"
         count_diff_refname_stub = False
 
         QC = hic_qc.HiCQC()
         QC.logger.setLevel("ERROR")
+        QC.output_prefix = self.output_prefix
         QC.parse_bam(bamfile, max_read_pairs=num_reads)
         self.QC = QC
         self.stats = QC.stats
@@ -53,6 +57,31 @@ class MyTestCase(unittest.TestCase):
         self.example_read.set_tag("MD", 100)
         self.example_read.set_tag("AS", 100)
         self.example_read.set_tag("XS", 0)
+
+    def setUp(self):
+        self.QCtmp = hic_qc.HiCQC()
+        self.QCtmp.allowed_dupe_percentage = 0.5
+
+        # Default stats
+        self.QCtmp.stats['total_reads'] = 4000
+        self.QCtmp.stats['total_read_pairs'] = 2000
+        self.QCtmp.stats['total_read_pairs_hq'] = 1000
+        self.QCtmp.stats['pairs_intracontig_hq'] = 200
+        self.QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
+        # driving metrics
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 4 # 2%
+        self.QCtmp.stats['proximo_usable_rp'] = 101 # 5.05%
+        self.QCtmp.stats['informative_pairs'] = 101 # >5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 1000 # 50%
+        # other good metrics
+        self.QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 4 # 0.67%
+        self.QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 5 # 0.5%
+        self.QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 10
+        # noninformative breakdown
+        self.QCtmp.stats['duplicate_reads'] = 800 # 20%
+        self.QCtmp.stats['zero_dist_pairs'] = 400 # 20%
+        self.QCtmp.stats['unmapped_reads'] = 400 # 10%
+        self.QCtmp.stats['mapq0_reads'] = 800 # 20%
 
     def tearDown(self):
         pass
@@ -96,20 +125,17 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(num_zeros, self.stats['zero_dist_pairs'])
 
     def test_is_split_read_false(self):
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.update_read_stats(self.example_read)
-
-        self.assertEqual(QCtmp.stats['split_reads'], 0)
+        self.QCtmp.update_read_stats(self.example_read)
+        self.assertEqual(self.QCtmp.stats['split_reads'], 0)
 
     def test_is_split_read_true(self):
-        QCtmp = hic_qc.HiCQC()
         self.example_read.set_tag("SA", 1)
 
-        QCtmp.update_read_stats(self.example_read)
-        self.assertEqual(QCtmp.stats['split_reads'], 1)
+        self.QCtmp.update_read_stats(self.example_read)
+        self.assertEqual(self.QCtmp.stats['split_reads'], 1)
 
     def test_python_version(self):
-        # Confirms that PYTHON version in Travis CI env matches expectation
+        '''Confirms that PYTHON version in Travis CI env matches expectation'''
         if "PYTHON" in os.environ:
             expected_python = os.environ["PYTHON"] if os.environ["PYTHON"] != "default" else "3.6"
             version_string = "{}.{}".format(*sys.version_info)
@@ -118,389 +144,289 @@ class MyTestCase(unittest.TestCase):
             return True
 
     def test_pass_judgement_sufficient(self):
-        # should pass
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
+        '''should pass'''
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 100 # 50%
-        QCtmp.stats['proximo_usable_rp'] = 500 # 25%
-        QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
+        self.QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 400 # 66.7%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 500 # 50%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 1000
+        self.QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 400 # 66.7%
+        self.QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 500 # 50%
+        self.QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 1000
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 40 # 1%
-        QCtmp.stats['zero_dist_pairs'] = 40 # 2%
-        QCtmp.stats['unmapped_reads'] = 20 # 0.5%
-        QCtmp.stats['mapq0_reads'] = 0 #0%
-        QCtmp.pass_judgement()
-        self.assertTrue(QCtmp.good_same_strand)
-        self.assertTrue(QCtmp.good_informative_read_pairs)
-        self.assertFalse(QCtmp.bad_noninformative_read_pairs)
-        self.assertTrue(QCtmp.good_long_contacts)
-        self.assertTrue(QCtmp.good_intercontig_contacts)
-        self.assertTrue(QCtmp.good_usable_reads)
-        self.assertFalse(QCtmp.high_dupe)
-        self.assertFalse(QCtmp.many_zero_dist_pairs)
-        self.assertFalse(QCtmp.many_unmapped_reads)
-        self.assertFalse(QCtmp.many_mapq_zero_reads)
-        self.assertTrue(QCtmp.judge_good)
-        self.assertFalse(QCtmp.judge_bad)
+        self.QCtmp.stats['duplicate_reads'] = 40 # 1%
+        self.QCtmp.stats['zero_dist_pairs'] = 40 # 2%
+        self.QCtmp.stats['unmapped_reads'] = 20 # 0.5%
+        self.QCtmp.stats['mapq0_reads'] = 0 #0%
+        self.QCtmp.pass_judgement()
+        self.assertTrue(self.QCtmp.good_same_strand)
+        self.assertTrue(self.QCtmp.good_informative_read_pairs)
+        self.assertFalse(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertTrue(self.QCtmp.good_long_contacts)
+        self.assertTrue(self.QCtmp.good_intercontig_contacts)
+        self.assertTrue(self.QCtmp.good_usable_reads)
+        self.assertFalse(self.QCtmp.high_dupe)
+        self.assertFalse(self.QCtmp.many_zero_dist_pairs)
+        self.assertFalse(self.QCtmp.many_unmapped_reads)
+        self.assertFalse(self.QCtmp.many_mapq_zero_reads)
+        self.assertTrue(self.QCtmp.judge_good)
+        self.assertFalse(self.QCtmp.judge_bad)
 
     def test_pass_judgement_insufficient(self):
-        # should fail
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
+        '''should fail'''
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 1 # 0.5%
-        QCtmp.stats['proximo_usable_rp'] = 10 # 0.25%
-        QCtmp.stats['noninformative_read_pairs'] = 1500 # 75%
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 1 # 0.5%
+        self.QCtmp.stats['proximo_usable_rp'] = 10 # 0.25%
+        self.QCtmp.stats['informative_pairs'] = 100 # >5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 1500 # 75%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 4 # 0.67%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 5 # 0.5%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 10
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 2000 # 50%
-        QCtmp.stats['zero_dist_pairs'] = 1000 # 50%
-        QCtmp.stats['unmapped_reads'] = 800 # 20%
-        QCtmp.stats['mapq0_reads'] = 1200 # 30%
-        QCtmp.pass_judgement()
-        self.assertFalse(QCtmp.good_same_strand)
-        self.assertFalse(QCtmp.good_informative_read_pairs)
-        self.assertTrue(QCtmp.bad_noninformative_read_pairs)
-        self.assertFalse(QCtmp.good_long_contacts)
-        self.assertFalse(QCtmp.good_intercontig_contacts)
-        self.assertFalse(QCtmp.good_usable_reads)
-        self.assertTrue(QCtmp.high_dupe)
-        self.assertTrue(QCtmp.many_zero_dist_pairs)
-        self.assertTrue(QCtmp.many_unmapped_reads)
-        self.assertTrue(QCtmp.many_mapq_zero_reads)
-        self.assertFalse(QCtmp.judge_good)
-        self.assertTrue(QCtmp.judge_bad)
+        self.QCtmp.stats['duplicate_reads'] = 2000 # 50%
+        self.QCtmp.stats['zero_dist_pairs'] = 1000 # 50%
+        self.QCtmp.stats['unmapped_reads'] = 800 # 20%
+        self.QCtmp.stats['mapq0_reads'] = 1200 # 30%
+        self.QCtmp.pass_judgement()
+        self.assertFalse(self.QCtmp.good_same_strand)
+        self.assertFalse(self.QCtmp.good_informative_read_pairs)
+        self.assertTrue(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertFalse(self.QCtmp.good_long_contacts)
+        self.assertFalse(self.QCtmp.good_intercontig_contacts)
+        self.assertFalse(self.QCtmp.good_usable_reads)
+        self.assertTrue(self.QCtmp.high_dupe)
+        self.assertTrue(self.QCtmp.many_zero_dist_pairs)
+        self.assertTrue(self.QCtmp.many_unmapped_reads)
+        self.assertTrue(self.QCtmp.many_mapq_zero_reads)
+        self.assertFalse(self.QCtmp.judge_good)
+        self.assertTrue(self.QCtmp.judge_bad)
 
     def test_pass_judgement_mixed(self):
         # should be mixed results
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
          # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 100 # 50%
-        QCtmp.stats['proximo_usable_rp'] = 500 # 25%
-        QCtmp.stats['noninformative_read_pairs'] = 1500 # 75%
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 100 # 50%
+        self.QCtmp.stats['proximo_usable_rp'] = 500 # 25%
+        self.QCtmp.stats['informative_pairs'] = 100 # 5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 1500 # 75%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 400 # 66.7%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 500 # 50%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 1000
+        self.QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 400 # 66.7%
+        self.QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 500 # 50%
+        self.QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 1000
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 2000 # 50%
-        QCtmp.stats['zero_dist_pairs'] = 1000 # 50%
-        QCtmp.stats['unmapped_reads'] = 800 # 20%
-        QCtmp.stats['mapq0_reads'] = 1200 # 30%
-        QCtmp.pass_judgement()
-        self.assertTrue(QCtmp.good_same_strand)
-        self.assertTrue(QCtmp.good_informative_read_pairs)
-        self.assertTrue(QCtmp.bad_noninformative_read_pairs)
-        self.assertTrue(QCtmp.good_long_contacts)
-        self.assertTrue(QCtmp.good_intercontig_contacts)
-        self.assertTrue(QCtmp.good_usable_reads)
-        self.assertTrue(QCtmp.high_dupe)
-        self.assertTrue(QCtmp.many_zero_dist_pairs)
-        self.assertTrue(QCtmp.many_unmapped_reads)
-        self.assertTrue(QCtmp.many_mapq_zero_reads)
-        self.assertTrue(QCtmp.judge_good)
-        self.assertTrue(QCtmp.judge_bad)
+        self.QCtmp.stats['duplicate_reads'] = 2000 # 50%
+        self.QCtmp.stats['zero_dist_pairs'] = 1000 # 50%
+        self.QCtmp.stats['unmapped_reads'] = 800 # 20%
+        self.QCtmp.stats['mapq0_reads'] = 1200 # 30%
+        self.QCtmp.pass_judgement()
+        self.assertTrue(self.QCtmp.good_same_strand)
+        self.assertFalse(self.QCtmp.good_informative_read_pairs)
+        self.assertTrue(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertTrue(self.QCtmp.good_long_contacts)
+        self.assertTrue(self.QCtmp.good_intercontig_contacts)
+        self.assertTrue(self.QCtmp.good_usable_reads)
+        self.assertTrue(self.QCtmp.high_dupe)
+        self.assertTrue(self.QCtmp.many_zero_dist_pairs)
+        self.assertTrue(self.QCtmp.many_unmapped_reads)
+        self.assertTrue(self.QCtmp.many_mapq_zero_reads)
+        self.assertTrue(self.QCtmp.judge_good)
+        self.assertTrue(self.QCtmp.judge_bad)
 
     def test_pass_judgement_low_signal(self):
         # should low signal
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 1 # 0.5%
-        QCtmp.stats['proximo_usable_rp'] = 10 # 0.25%
-        QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 1 # 0.5%
+        self.QCtmp.stats['proximo_usable_rp'] = 10 # 0.25%
+        self.QCtmp.stats['informative_pairs'] = 101 # >5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 4 # 0.67%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 5 # 0.5%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 10
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 40 # 1%
-        QCtmp.stats['zero_dist_pairs'] = 40 # 2%
-        QCtmp.stats['unmapped_reads'] = 20 # 0.5%
-        QCtmp.stats['mapq0_reads'] = 0 #0%
-        QCtmp.pass_judgement()
-        self.assertFalse(QCtmp.good_same_strand)
-        self.assertFalse(QCtmp.good_informative_read_pairs)
-        self.assertFalse(QCtmp.bad_noninformative_read_pairs)
-        self.assertFalse(QCtmp.good_long_contacts)
-        self.assertFalse(QCtmp.good_intercontig_contacts)
-        self.assertFalse(QCtmp.good_usable_reads)
-        self.assertFalse(QCtmp.high_dupe)
-        self.assertFalse(QCtmp.many_zero_dist_pairs)
-        self.assertFalse(QCtmp.many_unmapped_reads)
-        self.assertFalse(QCtmp.many_mapq_zero_reads)
-        self.assertFalse(QCtmp.judge_good)
-        self.assertFalse(QCtmp.judge_bad)
+        self.QCtmp.stats['duplicate_reads'] = 40 # 1%
+        self.QCtmp.stats['zero_dist_pairs'] = 40 # 2%
+        self.QCtmp.stats['unmapped_reads'] = 20 # 0.5%
+        self.QCtmp.stats['mapq0_reads'] = 0 #0%
+        self.QCtmp.pass_judgement()
+        self.assertFalse(self.QCtmp.good_same_strand)
+        self.assertTrue(self.QCtmp.good_informative_read_pairs)
+        self.assertFalse(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertFalse(self.QCtmp.good_long_contacts)
+        self.assertFalse(self.QCtmp.good_intercontig_contacts)
+        self.assertFalse(self.QCtmp.good_usable_reads)
+        self.assertFalse(self.QCtmp.high_dupe)
+        self.assertFalse(self.QCtmp.many_zero_dist_pairs)
+        self.assertFalse(self.QCtmp.many_unmapped_reads)
+        self.assertFalse(self.QCtmp.many_mapq_zero_reads)
+        self.assertFalse(self.QCtmp.judge_good)
+        self.assertFalse(self.QCtmp.judge_bad)
 
     def test_pass_judgement_close_not_sufficient(self):
         # should barely not pass
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5% - exactly on the threshold fails
-        QCtmp.stats['proximo_usable_rp'] = 500 # 25%
-        QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5% - exactly on the threshold fails
+        self.QCtmp.stats['proximo_usable_rp'] = 500 # 25%
+        self.QCtmp.stats['informative_pairs'] = 101 # >5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 100 # 10%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 400 # 66.7%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 500 # 50%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 1000
+        self.QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 400 # 66.7%
+        self.QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 500 # 50%
+        self.QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 1000
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 40 # 1%
-        QCtmp.stats['zero_dist_pairs'] = 40 # 2%
-        QCtmp.stats['unmapped_reads'] = 20 # 0.5%
-        QCtmp.stats['mapq0_reads'] = 0 #0%
-        QCtmp.pass_judgement()
-        self.assertFalse(QCtmp.good_same_strand)
-        self.assertTrue(QCtmp.good_informative_read_pairs)
-        self.assertFalse(QCtmp.bad_noninformative_read_pairs)
-        self.assertTrue(QCtmp.good_long_contacts)
-        self.assertTrue(QCtmp.good_intercontig_contacts)
-        self.assertTrue(QCtmp.good_usable_reads)
-        self.assertFalse(QCtmp.high_dupe)
-        self.assertFalse(QCtmp.many_zero_dist_pairs)
-        self.assertFalse(QCtmp.many_unmapped_reads)
-        self.assertFalse(QCtmp.many_mapq_zero_reads)
-        self.assertFalse(QCtmp.judge_good)
-        self.assertFalse(QCtmp.judge_bad)
+        self.QCtmp.stats['duplicate_reads'] = 40 # 1%
+        self.QCtmp.stats['zero_dist_pairs'] = 40 # 2%
+        self.QCtmp.stats['unmapped_reads'] = 20 # 0.5%
+        self.QCtmp.stats['mapq0_reads'] = 0 #0%
+        self.QCtmp.pass_judgement()
+        self.assertFalse(self.QCtmp.good_same_strand)
+        self.assertTrue(self.QCtmp.good_informative_read_pairs)
+        self.assertFalse(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertTrue(self.QCtmp.good_long_contacts)
+        self.assertTrue(self.QCtmp.good_intercontig_contacts)
+        self.assertTrue(self.QCtmp.good_usable_reads)
+        self.assertFalse(self.QCtmp.high_dupe)
+        self.assertFalse(self.QCtmp.many_zero_dist_pairs)
+        self.assertFalse(self.QCtmp.many_unmapped_reads)
+        self.assertFalse(self.QCtmp.many_mapq_zero_reads)
+        self.assertFalse(self.QCtmp.judge_good)
+        self.assertFalse(self.QCtmp.judge_bad)
 
     def test_pass_judgement_close_still_insufficient(self):
         # should still be insufficient just over the line
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 1 # 0.5%
-        QCtmp.stats['proximo_usable_rp'] = 10 # 0.25%
-        QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 1 # 0.5%
+        self.QCtmp.stats['proximo_usable_rp'] = 10 # 0.25%
+        self.QCtmp.stats['informative_pairs'] = 100 # >5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 4 # 0.67%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 5 # 0.5%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 10
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 2000 # 50%
-        QCtmp.stats['zero_dist_pairs'] = 1000 # 50%
-        QCtmp.stats['unmapped_reads'] = 800 # 20%
-        QCtmp.stats['mapq0_reads'] = 1200 # 30%
-        QCtmp.pass_judgement()
-        self.assertFalse(QCtmp.good_same_strand)
-        self.assertFalse(QCtmp.good_informative_read_pairs)
-        self.assertTrue(QCtmp.bad_noninformative_read_pairs)
-        self.assertFalse(QCtmp.good_long_contacts)
-        self.assertFalse(QCtmp.good_intercontig_contacts)
-        self.assertFalse(QCtmp.good_usable_reads)
-        self.assertTrue(QCtmp.high_dupe)
-        self.assertTrue(QCtmp.many_zero_dist_pairs)
-        self.assertTrue(QCtmp.many_unmapped_reads)
-        self.assertTrue(QCtmp.many_mapq_zero_reads)
-        self.assertFalse(QCtmp.judge_good)
-        self.assertTrue(QCtmp.judge_bad)
+        self.QCtmp.stats['duplicate_reads'] = 2000 # 50%
+        self.QCtmp.stats['zero_dist_pairs'] = 1000 # 50%
+        self.QCtmp.stats['unmapped_reads'] = 800 # 20%
+        self.QCtmp.stats['mapq0_reads'] = 1200 # 30%
+        self.QCtmp.pass_judgement()
+        self.assertFalse(self.QCtmp.good_same_strand)
+        self.assertFalse(self.QCtmp.good_informative_read_pairs)
+        self.assertTrue(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertFalse(self.QCtmp.good_long_contacts)
+        self.assertFalse(self.QCtmp.good_intercontig_contacts)
+        self.assertFalse(self.QCtmp.good_usable_reads)
+        self.assertTrue(self.QCtmp.high_dupe)
+        self.assertTrue(self.QCtmp.many_zero_dist_pairs)
+        self.assertTrue(self.QCtmp.many_unmapped_reads)
+        self.assertTrue(self.QCtmp.many_mapq_zero_reads)
+        self.assertFalse(self.QCtmp.judge_good)
+        self.assertTrue(self.QCtmp.judge_bad)
 
     def test_pass_judgement_on_boundaries_should_be_low_signal(self):
         # should be low signal
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
-        QCtmp.stats['proximo_usable_rp'] = 100 # 5%
-        QCtmp.stats['noninformative_read_pairs'] = 1000 # 50%
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
+        self.QCtmp.stats['proximo_usable_rp'] = 100 # 5%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 15 # 2.5%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 25 # 2.5%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 600
+        self.QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 15 # 2.5%
+        self.QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 25 # 2.5%
+        self.QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 600
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 800 # 20%
-        QCtmp.stats['zero_dist_pairs'] = 400 # 20%
-        QCtmp.stats['unmapped_reads'] = 400 # 10%
-        QCtmp.stats['mapq0_reads'] = 800 # 20%
-        QCtmp.pass_judgement()
-        self.assertFalse(QCtmp.good_same_strand)
-        self.assertFalse(QCtmp.good_informative_read_pairs)
-        self.assertFalse(QCtmp.bad_noninformative_read_pairs)
-        self.assertFalse(QCtmp.good_long_contacts)
-        self.assertFalse(QCtmp.good_intercontig_contacts)
-        self.assertFalse(QCtmp.good_usable_reads)
-        self.assertFalse(QCtmp.high_dupe)
-        self.assertFalse(QCtmp.many_zero_dist_pairs)
-        self.assertFalse(QCtmp.many_unmapped_reads)
-        self.assertFalse(QCtmp.many_mapq_zero_reads)
-        self.assertFalse(QCtmp.judge_good)
-        self.assertFalse(QCtmp.judge_bad)
+        self.QCtmp.pass_judgement()
+        self.assertFalse(self.QCtmp.good_same_strand)
+        self.assertTrue(self.QCtmp.good_informative_read_pairs)
+        self.assertFalse(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertFalse(self.QCtmp.good_long_contacts)
+        self.assertFalse(self.QCtmp.good_intercontig_contacts)
+        self.assertFalse(self.QCtmp.good_usable_reads)
+        self.assertFalse(self.QCtmp.high_dupe)
+        self.assertFalse(self.QCtmp.many_zero_dist_pairs)
+        self.assertFalse(self.QCtmp.many_unmapped_reads)
+        self.assertFalse(self.QCtmp.many_mapq_zero_reads)
+        self.assertFalse(self.QCtmp.judge_good)
+        self.assertFalse(self.QCtmp.judge_bad)
 
     def test_pass_judgement_just_past_boundaries_should_be_mixed_results(self):
         # should be low signal
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 4 # 2%
-        QCtmp.stats['proximo_usable_rp'] = 101 # 5.05%
-        QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
+        self.QCtmp.stats['informative_pairs'] = 100 # 5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 19 # 3.17%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 26 # 2.6%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 601
+        self.QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 19 # 3.17%
+        self.QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 26 # 2.6%
+        self.QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 601
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 801 # 20.025%
-        QCtmp.stats['zero_dist_pairs'] = 401 # 20.05%
-        QCtmp.stats['unmapped_reads'] = 401 # 10.025%
-        QCtmp.stats['mapq0_reads'] = 801 # 20.025%
-        QCtmp.pass_judgement()
-        self.assertTrue(QCtmp.good_same_strand)
-        self.assertTrue(QCtmp.good_informative_read_pairs)
-        self.assertTrue(QCtmp.bad_noninformative_read_pairs)
-        self.assertTrue(QCtmp.good_long_contacts)
-        self.assertTrue(QCtmp.good_intercontig_contacts)
-        self.assertTrue(QCtmp.good_usable_reads)
-        self.assertTrue(QCtmp.high_dupe)
-        self.assertTrue(QCtmp.many_zero_dist_pairs)
-        self.assertTrue(QCtmp.many_unmapped_reads)
-        self.assertTrue(QCtmp.many_mapq_zero_reads)
-        self.assertTrue(QCtmp.judge_good)
-        self.assertTrue(QCtmp.judge_bad)
+        self.QCtmp.stats['duplicate_reads'] = 801 # 20.025%
+        self.QCtmp.stats['zero_dist_pairs'] = 401 # 20.05%
+        self.QCtmp.stats['unmapped_reads'] = 401 # 10.025%
+        self.QCtmp.stats['mapq0_reads'] = 801 # 20.025%
+        self.QCtmp.pass_judgement()
+        self.assertTrue(self.QCtmp.good_same_strand)
+        self.assertFalse(self.QCtmp.good_informative_read_pairs)
+        self.assertTrue(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertTrue(self.QCtmp.good_long_contacts)
+        self.assertTrue(self.QCtmp.good_intercontig_contacts)
+        self.assertTrue(self.QCtmp.good_usable_reads)
+        self.assertTrue(self.QCtmp.high_dupe)
+        self.assertTrue(self.QCtmp.many_zero_dist_pairs)
+        self.assertTrue(self.QCtmp.many_unmapped_reads)
+        self.assertTrue(self.QCtmp.many_mapq_zero_reads)
+        self.assertTrue(self.QCtmp.judge_good)
+        self.assertTrue(self.QCtmp.judge_bad)
 
     def test_pass_judgement_just_across_sufficient_boundary(self):
         # should pass
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 4 # 2%
-        QCtmp.stats['proximo_usable_rp'] = 101 # 5.05%
-        QCtmp.stats['noninformative_read_pairs'] = 1000 # 50%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 4 # 0.67%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 5 # 0.5%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 10
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 800 # 20%
-        QCtmp.stats['zero_dist_pairs'] = 400 # 20%
-        QCtmp.stats['unmapped_reads'] = 400 # 10%
-        QCtmp.stats['mapq0_reads'] = 800 # 20%
-        QCtmp.pass_judgement()
-        self.assertTrue(QCtmp.good_same_strand)
-        self.assertTrue(QCtmp.good_informative_read_pairs)
-        self.assertFalse(QCtmp.bad_noninformative_read_pairs)
-        self.assertFalse(QCtmp.good_long_contacts)
-        self.assertFalse(QCtmp.good_intercontig_contacts)
-        self.assertFalse(QCtmp.good_usable_reads)
-        self.assertFalse(QCtmp.high_dupe)
-        self.assertFalse(QCtmp.many_zero_dist_pairs)
-        self.assertFalse(QCtmp.many_unmapped_reads)
-        self.assertFalse(QCtmp.many_mapq_zero_reads)
-        self.assertTrue(QCtmp.judge_good)
-        self.assertFalse(QCtmp.judge_bad)
+        self.QCtmp.pass_judgement()
+        self.assertTrue(self.QCtmp.good_same_strand)
+        self.assertTrue(self.QCtmp.good_informative_read_pairs)
+        self.assertFalse(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertFalse(self.QCtmp.good_long_contacts)
+        self.assertFalse(self.QCtmp.good_intercontig_contacts)
+        self.assertFalse(self.QCtmp.good_usable_reads)
+        self.assertFalse(self.QCtmp.high_dupe)
+        self.assertFalse(self.QCtmp.many_zero_dist_pairs)
+        self.assertFalse(self.QCtmp.many_unmapped_reads)
+        self.assertFalse(self.QCtmp.many_mapq_zero_reads)
+        self.assertTrue(self.QCtmp.judge_good)
+        self.assertFalse(self.QCtmp.judge_bad)
 
     def test_pass_judgement_just_across_insufficient_boundary(self):
         # should pass
-        QCtmp = hic_qc.HiCQC()
-        QCtmp.allowed_dupe_percentage = 0.5
         # major denominators
-        QCtmp.stats['total_reads'] = 4000
-        QCtmp.stats['total_read_pairs'] = 2000
-        QCtmp.stats['total_read_pairs_hq'] = 1000
-        QCtmp.stats['pairs_intracontig_hq'] = 200
-        QCtmp.stats['pairs_on_contigs_greater_10k_hq'] = 600
         # driving metrics
-        QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
-        QCtmp.stats['proximo_usable_rp'] = 100 # 5%
-        QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
+        self.QCtmp.stats['pairs_on_same_strand_hq'] = 3 # 1.5%
+        self.QCtmp.stats['proximo_usable_rp'] = 100 # 5%
+        self.QCtmp.stats['informative_pairs'] = 100 # 5%
+        self.QCtmp.stats['noninformative_read_pairs'] = 1001 # 50.05%
         # other good metrics
-        QCtmp.stats['pairs_greater_10k_on_contigs_greater_10k_hq'] = 4 # 0.67%
-        QCtmp.stats['pairs_intercontig_hq_gt10kbp'] = 5 # 0.5%
-        QCtmp.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 10
         # noninformative breakdown
-        QCtmp.stats['duplicate_reads'] = 800 # 20%
-        QCtmp.stats['zero_dist_pairs'] = 400 # 20%
-        QCtmp.stats['unmapped_reads'] = 400 # 10%
-        QCtmp.stats['mapq0_reads'] = 800 # 20%
-        QCtmp.pass_judgement()
-        self.assertFalse(QCtmp.good_same_strand)
-        self.assertFalse(QCtmp.good_informative_read_pairs)
-        self.assertTrue(QCtmp.bad_noninformative_read_pairs)
-        self.assertFalse(QCtmp.good_long_contacts)
-        self.assertFalse(QCtmp.good_intercontig_contacts)
-        self.assertFalse(QCtmp.good_usable_reads)
-        self.assertFalse(QCtmp.high_dupe)
-        self.assertFalse(QCtmp.many_zero_dist_pairs)
-        self.assertFalse(QCtmp.many_unmapped_reads)
-        self.assertFalse(QCtmp.many_mapq_zero_reads)
-        self.assertFalse(QCtmp.judge_good)
-        self.assertTrue(QCtmp.judge_bad)
+        self.QCtmp.pass_judgement()
+        self.assertFalse(self.QCtmp.good_same_strand)
+        self.assertFalse(self.QCtmp.good_informative_read_pairs)
+        self.assertTrue(self.QCtmp.bad_noninformative_read_pairs)
+        self.assertFalse(self.QCtmp.good_long_contacts)
+        self.assertFalse(self.QCtmp.good_intercontig_contacts)
+        self.assertFalse(self.QCtmp.good_usable_reads)
+        self.assertFalse(self.QCtmp.high_dupe)
+        self.assertFalse(self.QCtmp.many_zero_dist_pairs)
+        self.assertFalse(self.QCtmp.many_unmapped_reads)
+        self.assertFalse(self.QCtmp.many_mapq_zero_reads)
+        self.assertFalse(self.QCtmp.judge_good)
+        self.assertTrue(self.QCtmp.judge_bad)
 
     def test_empty_bam(self):
-        QC = hic_qc.HiCQC()
-        QC.logger.setLevel("ERROR")
         bamfile = self.input_dir + "abc_test.empty.bam"
-        QC.parse_bam(bamfile, max_read_pairs=1000)
-        QC.plot_dup_saturation()
-        QC.pass_judgement()
-        QC.html_from_judgement()
-        QC.plot_histograms()
-        QC.stringify_stats()
-        QC.log_stats()
-        QC.write_stat_table()
-        QC.write_dists_file()
-        QC.write_pdf_report(quiet=True)
+        self.QCtmp.parse_bam(bamfile, max_read_pairs=1000)
+        self.QCtmp.plot_dup_saturation()
+        self.QCtmp.pass_judgement()
+        self.QCtmp.html_from_judgement()
+        self.QCtmp.plot_histograms()
+        self.QCtmp.stringify_stats()
+        self.QCtmp.log_stats()
+        self.QCtmp.write_stat_table()
+        self.QCtmp.write_dists_file()
+        self.QCtmp.write_pdf_report(quiet=True)
 
 if __name__ == '__main__':
     unittest.main()
