@@ -128,35 +128,36 @@ class HiCQC(object):
             self.max_zero_mapq0_percentage                  =   float(thresholds[sample_type]['MAX_ZERO_MAPQ0_PERCENTAGE'])
             self.max_unmapped_percentage                    =   float(thresholds[sample_type]['MAX_UNMAPPED_PERCENTAGE'])
 
-        self.per_read_metrics = set(['total_reads', 'unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
-        self.per_pair_metrics = set(['intercontig_pairs',
+        self.per_read_metrics = set(['duplicate_reads', 'mapq0_reads', 'split_reads', 'total_reads', 'unmapped_reads',])
+        self.per_pair_metrics = set(['different_ref_stub_pairs',
+                                     'informative_pairs',
+                                     'intercontig_pairs',
                                      'intercontig_pairs_hq',
-                                     'different_ref_stub_pairs',
                                      'pairs_greater_10k',
-                                     'zero_dist_pairs',
-                                     'total_pairs_on_same_contig',
-                                     'pairs_on_contigs_greater_10k',
                                      'pairs_greater_10k_on_contigs_greater_10k',
-                                     'pairs_on_same_strand',
-                                     'pairs_intracontig_hq_gt10kbp',
                                      'pairs_intracontig_hq',
+                                     'pairs_intracontig_hq_gt10kbp',
+                                     'pairs_on_contigs_greater_10k',
+                                     'pairs_on_same_strand',
                                      'pairs_on_same_strand_hq',
-                                     'total_read_pairs',
-                                     'total_read_pairs_hq',
                                      'proximo_usable_rp',
                                      'proximo_usable_rp_hq',
+                                     'total_pairs_on_same_contig',
+                                     'total_read_pairs',
+                                     'total_read_pairs_hq',
+                                     'zero_dist_pairs',
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
         self.to_percents =    {
                                # Top Table
                                'perc_pairs_on_same_strand_hq': ('pairs_on_same_strand_hq', 'pairs_intracontig_hq'),
-                               'perc_informative_read_pairs': ('proximo_usable_rp', 'total_read_pairs'),
-                               'perc_noninformative_read_pairs': ('noninformative_read_pairs', 'total_read_pairs'),
+                               'perc_informative_read_pairs': ('informative_pairs', 'total_read_pairs'),
                                # Other Good Metrics
                                'perc_pairs_intra_hq_gt10kbp': ('pairs_intracontig_hq_gt10kbp', 'pairs_intracontig_hq'),
                                'perc_intercontig_pairs_hq_gt10kbp': ('pairs_intercontig_hq_gt10kbp', 'total_read_pairs_hq'),
                                # Usable reads number is in self.to_round
                                # Noninformative Read Breakdown
+                               'perc_noninformative_read_pairs': ('noninformative_read_pairs', 'total_read_pairs'),
                                'perc_duplicate_reads': ('duplicate_reads', 'total_reads'),
                                'perc_zero_dist_pairs': ('zero_dist_pairs', 'total_read_pairs'),
                                'perc_unmapped_reads': ('unmapped_reads', 'total_reads'),
@@ -310,6 +311,8 @@ class HiCQC(object):
 
         if self.is_noninformative_read_pair(a, b):
             self.stats['noninformative_read_pairs'] += 1
+        elif self.is_informative_pair(a, b):
+            self.stats['informative_pairs'] += 1
 
         if not a.is_unmapped and not b.is_unmapped:
             self.update_mapped_pair_stats(a, b)
@@ -431,6 +434,19 @@ class HiCQC(object):
             if abs(a.reference_start - b.reference_start) == 0:
                 is_noninformative = True
         return is_noninformative
+
+    def is_informative_pair(self, a, b):
+        is_informative = True
+        if a.is_unmapped or b.is_unmapped:
+            is_informative = False
+        elif a.is_duplicate or b.is_duplicate:
+            is_informative = False
+        elif a.mapping_quality == 0 or b.mapping_quality == 0:
+            is_informative = False
+        elif a.reference_name == b.reference_name and \
+             abs(a.reference_start - b.reference_start) < 10000:
+            is_informative = False
+        return is_informative
 
     def is_high_qual_pair(self, a, b):
         return min(a.mapping_quality, b.mapping_quality) >= 20 and \
@@ -747,11 +763,6 @@ class HiCQC(object):
         else:
             self.informative_read_pairs_html = '<span class="fail">{0}</span>'
 
-        if not self.bad_noninformative_read_pairs:
-            self.noninformative_read_pairs_html = '<span class="pass">{0}</span>'
-        else:
-            self.noninformative_read_pairs_html = '<span class="fail">{0}</span>'
-
         # other good metrics
         if self.good_long_contacts:
             self.long_contacts_html = '<span class="pass">{0}</span>'
@@ -769,6 +780,11 @@ class HiCQC(object):
             self.usable_hq_gt_5k_html = '<span class="fail">{0}</span>'
 
         # noninformative reads breakdown
+        if not self.bad_noninformative_read_pairs:
+            self.noninformative_read_pairs_html = '<span class="pass">{0}</span>'
+        else:
+            self.noninformative_read_pairs_html = '<span class="fail">{0}</span>'
+
         if not self.high_dupe:
             self.high_dupe_html = '<span class="pass">{0}</span>'
         else:
@@ -796,29 +812,49 @@ class HiCQC(object):
             self.stats ({str: float/str}): mapping of lib characteristics to their values
 
         Sets:
-            self.judge_good (bool): does the hi-c library show characteristics of 'goodness', e.g. many long-distance contacts etc.
-            self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-distance reads or too many duplicates.
+            self.judge_good (bool): does the hi-c library show characteristics of 'goodness', e.g. many same strand contacts.
+            self.judge_bad (bool): does the hi-c library show 'bad' characteristics, e.g. zero-mapq reads or too many duplicates.
             self.judge_html (str): an HTML string to put into pass/fail box
         '''
         # these metrics drive the subjective quality judgement
-        self.good_same_strand              = float(self.stats['pairs_on_same_strand_hq'])   / max(self.stats['pairs_intracontig_hq'], 1) > self.min_same_strand_hq_percentage
-        self.good_informative_read_pairs   = float(self.stats['proximo_usable_rp'])         / max(self.stats['total_read_pairs'], 1)     > self.min_informative_read_pairs_percentage
-        self.bad_noninformative_read_pairs = float(self.stats['noninformative_read_pairs']) / max(self.stats['total_read_pairs'], 1)     > self.max_noninformative_read_pair_percentage
+        self.good_same_strand              = float(self.stats['pairs_on_same_strand_hq']) / \
+                                             max(self.stats['pairs_intracontig_hq'], 1) > \
+                                             self.min_same_strand_hq_percentage
+        self.good_informative_read_pairs   = float(self.stats['informative_pairs']) / \
+                                             max(self.stats['total_read_pairs'], 1) > \
+                                             self.min_informative_read_pairs_percentage
 
         # other good metrics
-        self.good_long_contacts        = float(self.stats['pairs_greater_10k_on_contigs_greater_10k_hq']) / max(self.stats['pairs_on_contigs_greater_10k_hq'], 1) > self.min_long_contact_percentage
-        self.good_intercontig_contacts = float(self.stats['pairs_intercontig_hq_gt10kbp'])                / max(self.stats['total_read_pairs_hq'], 1)             > self.min_intercontig_contact_percentage
-        self.good_usable_reads         = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k']) > self.min_usable_reads_per_contig
+        self.good_long_contacts        = float(self.stats['pairs_greater_10k_on_contigs_greater_10k_hq']) / \
+                                         max(self.stats['pairs_on_contigs_greater_10k_hq'], 1) > \
+                                         self.min_long_contact_percentage
+        self.good_intercontig_contacts = float(self.stats['pairs_intercontig_hq_gt10kbp']) / \
+                                         max(self.stats['total_read_pairs_hq'], 1) > \
+                                         self.min_intercontig_contact_percentage
+        self.good_usable_reads         = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k']) > \
+                                         self.min_usable_reads_per_contig
 
         # noninformative read breakdown
         # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
-        self.high_dupe = float(self.stats['duplicate_reads'])            / max(self.stats['total_reads'], 1)      > self.max_dupe_percentage * self.allowed_dupe_percentage
-        self.many_zero_dist_pairs = float(self.stats['zero_dist_pairs']) / max(self.stats['total_read_pairs'], 1) > self.max_zero_dist_percentage
-        self.many_unmapped_reads  = float(self.stats['unmapped_reads'])  / max(self.stats['total_reads'], 1)      > self.max_unmapped_percentage
-        self.many_mapq_zero_reads = float(self.stats['mapq0_reads'])     / max(self.stats['total_reads'], 1)      > self.max_zero_mapq0_percentage
+        self.bad_noninformative_read_pairs = float(self.stats['noninformative_read_pairs']) / \
+                                             max(self.stats['total_read_pairs'], 1) > \
+                                             self.max_noninformative_read_pair_percentage
+        self.high_dupe = float(self.stats['duplicate_reads']) / \
+                         max(self.stats['total_reads'], 1) > \
+                         self.max_dupe_percentage * \
+                         self.allowed_dupe_percentage
+        self.many_zero_dist_pairs = float(self.stats['zero_dist_pairs']) / \
+                                    max(self.stats['total_read_pairs'], 1) > \
+                                    self.max_zero_dist_percentage
+        self.many_unmapped_reads  = float(self.stats['unmapped_reads']) / \
+                                    max(self.stats['total_reads'], 1) > \
+                                    self.max_unmapped_percentage
+        self.many_mapq_zero_reads = float(self.stats['mapq0_reads']) / \
+                                    max(self.stats['total_reads'], 1) > \
+                                    self.max_zero_mapq0_percentage
 
-        self.judge_good = self.good_same_strand and self.good_informative_read_pairs
-        self.judge_bad  = self.bad_noninformative_read_pairs
+        self.judge_good = self.good_same_strand
+        self.judge_bad  = not self.good_informative_read_pairs
 
         self.html_from_judgement()
 
@@ -956,7 +992,8 @@ class HiCQC(object):
               self.out_stats['perc_pairs_greater_10k_on_contigs_greater_10k'])
               )
 
-        self.logger.info('Count of read pairs with mates mapping to different chromosomes/contigs (sign of good prep IF same genome):')
+        self.logger.info('Count of read pairs with mates mapping to different chromosomes/contigs ' \
+                         '(sign of good prep IF same genome):')
         self.logger.info('{} of total {} {}%'.format(
               self.out_stats['intercontig_pairs'],
               self.out_stats['total_read_pairs'],
@@ -977,18 +1014,21 @@ class HiCQC(object):
               self.out_stats['perc_mapq0_reads'])
               )
 
-        self.logger.info('Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):')
+        self.logger.info('Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; ' \
+                         'WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):')
         self.logger.info('{} of total {} {}%'.format(
               self.out_stats['duplicate_reads'],
               self.out_stats['total_reads'],
               self.out_stats['perc_duplicate_reads'])
               )
 
-        self.logger.info('Percent duplicated at {} reads: {} (-1 if insufficient to estimate)'.format(self.out_stats['target_read_total'], self.out_stats['extrapolated_dup_rate']))
+        self.logger.info('Percent duplicated at {} reads: {} ' \
+                         '(-1 if insufficient to estimate)'.format(self.out_stats['target_read_total'],
+                                                                   self.out_stats['extrapolated_dup_rate']))
 
         if count_diff_refname_stub:
-            self.logger.info('Count of read pairs with mates mapping to different reference groupings, e.g. genomes (sign of bad ' \
-                  'prep potentially):')
+            self.logger.info('Count of read pairs with mates mapping to different reference groupings, ' \
+                             'e.g. genomes (sign of bad prep potentially):')
             self.logger.info('{} of total {} {}%'.format(
                   self.out_stats['different_ref_stub_pairs'],
                   self.out_stats['total_read_pairs'],
@@ -1099,10 +1139,14 @@ def parse_args():
     parser.add_argument('--make_report', '-r', default=False, action='store_true',
                         help='Whether to export results in a PDF report. Requires that the QC script be' \
                              'in the same directory as the QC repo\'s collateral directory. Default: False.')
-    parser.add_argument('--target_read_total', type=int, default=100000000, help='Total read count for duplicate read extrapolation (Default: %(default)s)')
-    parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50], help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
-    parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40], help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
-    parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0], help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
+    parser.add_argument('--target_read_total', type=int, default=100000000,
+                        help='Total read count for duplicate read extrapolation (Default: %(default)s)')
+    parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50],
+                        help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
+    parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40],
+                        help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
+    parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0],
+                        help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--version', action='version', version=__version__)
     parser.add_argument('--thresholds', default='{0}/collateral/thresholds.json'.format(os.path.dirname(os.path.realpath(__file__))),
                         help='JSON file containing QC thresholds (Default: %(default)s)')
