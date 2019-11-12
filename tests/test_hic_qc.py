@@ -34,7 +34,7 @@ class MyTestCase(unittest.TestCase):
         self.output_dir = self.collateral_dir + "output/"
         self.output_prefix = self.output_dir + "Read_mate_dist"
         num_reads = 1000
-        bamfile = self.input_dir + "abc_test.bam"
+        bamfile = "/Users/hayleymangelson/PGTools/hic_qc/tests/collateral/input/abc_test.bam"
         count_diff_refname_stub = False
 
         QC = hic_qc.HiCQC()
@@ -416,7 +416,7 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(self.QCtmp.judge_bad)
 
     def test_empty_bam(self):
-        bamfile = self.input_dir + "abc_test.empty.bam"
+        bamfile = "/Users/hayleymangelson/PGTools/hic_qc/tests/collateral/input/abc_test.empty.bam"
         self.QCtmp.parse_bam(bamfile, max_read_pairs=1000)
         self.QCtmp.plot_dup_saturation()
         self.QCtmp.pass_judgement()
