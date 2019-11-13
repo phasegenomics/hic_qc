@@ -146,6 +146,10 @@ class HiCQC(object):
                                      'total_read_pairs',
                                      'total_read_pairs_hq',
                                      'zero_dist_pairs',
+                                     'reads_spanning_up_to_1k',
+                                     'reads_spanning_1k_to_10k',
+                                     'reads_spanning_10k_to_100k',
+                                     'reads_spanning_greater_than_1000k',
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
         self.to_percents =    {
