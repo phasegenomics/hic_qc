@@ -400,11 +400,11 @@ class HiCQC(object):
             if dist >= 1000 and dist < 10000:
                 self.stats['reads_spanning_1k_to_10k'] += 1
             if dist >= 10000 and dist < 100000:
-                self.stats['reads_spanning_10k_to_100k']
+                self.stats['reads_spanning_10k_to_100k'] += 1
             if dist >= 100000 and dist < 1000000:
-                self.stats['reads_spanning_100k_to_1000k']
-            if dist >= 100000:
-                self.stats['reads_spanning_greater_than_1000k']
+                self.stats['reads_spanning_100k_to_1000k'] += 1
+            if dist >= 1000000:
+                self.stats['reads_spanning_greater_than_1000k'] += 1
             if a.reference_name in self.contigs_greater_10k:
                 self.stats['pairs_on_contigs_greater_10k'] += 1
                 if is_high_qual_pair:

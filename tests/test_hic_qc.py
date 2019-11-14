@@ -115,10 +115,16 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(self.stats['reads_spanning_10k_to_100k'], 0)
 
     def test_reads_spanning_100k_to_1000k(self):
-        self.assertEqual(self.stats['reads_spanning_100k_to_1000k'], 0)
+        self.assertEqual(self.stats['reads_spanning_100k_to_1000k'], 1)
 
     def test_reads_spanning_greater_than_1000k(self):
         self.assertEqual(self.stats['reads_spanning_greater_than_1000k'], 0)
+
+    def test_all_reads(self):
+        self.assertEqual(self.stats['reads_spanning_greater_than_1000k'] + self.stats['reads_spanning_100k_to_1000k']
+                         + self.stats['reads_spanning_10k_to_100k'] + self.stats['reads_spanning_1k_to_10k'] +
+                         self.stats['reads_spanning_up_to_1k'] + self.stats['intercontig_pairs'], self.stats[
+            'total_reads'] / 2)
 
     def test_count_num_pairs(self):
         self.assertEqual(self.stats['total_read_pairs'], 107)
