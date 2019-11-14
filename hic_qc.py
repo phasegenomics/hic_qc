@@ -149,6 +149,7 @@ class HiCQC(object):
                                      'reads_spanning_up_to_1k',
                                      'reads_spanning_1k_to_10k',
                                      'reads_spanning_10k_to_100k',
+                                     'reads_spanning_100k_to_1000k',
                                      'reads_spanning_greater_than_1000k',
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
@@ -394,15 +395,15 @@ class HiCQC(object):
                 self.stats['pairs_greater_10k'] += 1
             if dist == 0:
                 self.stats['zero_dist_pairs'] += 1
-            if dist > 0 and dist < 1000:
+            if dist >= 0 and dist < 1000:
                 self.stats['reads_spanning_up_to_1k'] += 1
-            if dist > 1000 and dist < 10000:
+            if dist >= 1000 and dist < 10000:
                 self.stats['reads_spanning_1k_to_10k'] += 1
-            if dist > 10000 and dist < 100000:
+            if dist >= 10000 and dist < 100000:
                 self.stats['reads_spanning_10k_to_100k']
-            if dist > 100000 and dist < 1000000:
+            if dist >= 100000 and dist < 1000000:
                 self.stats['reads_spanning_100k_to_1000k']
-            if dist > 100000:
+            if dist >= 100000:
                 self.stats['reads_spanning_greater_than_1000k']
             if a.reference_name in self.contigs_greater_10k:
                 self.stats['pairs_on_contigs_greater_10k'] += 1

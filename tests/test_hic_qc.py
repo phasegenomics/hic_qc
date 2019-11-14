@@ -34,7 +34,7 @@ class MyTestCase(unittest.TestCase):
         self.output_dir = self.collateral_dir + "output/"
         self.output_prefix = self.output_dir + "Read_mate_dist"
         num_reads = 1000
-        bamfile = "/Users/hayleymangelson/PGTools/hic_qc/tests/collateral/input/abc_test.bam"
+        bamfile = self.input_dir + "abc_test.bam"
         count_diff_refname_stub = False
 
         QC = hic_qc.HiCQC()
@@ -105,6 +105,21 @@ class MyTestCase(unittest.TestCase):
     def test_count_zero_dist_pairs(self):
         self.assertEqual(self.stats['zero_dist_pairs'], 38)
 
+    def test_reads_spanning_up_to_1k(self):
+        self.assertEqual(self.stats['reads_spanning_up_to_1k'], 101)
+
+    def test_reads_spanning_1k_to_10k(self):
+        self.assertEqual(self.stats['reads_spanning_1k_to_10k'], 0)
+
+    def test_reads_spanning_10k_to_100k(self):
+        self.assertEqual(self.stats['reads_spanning_10k_to_100k'], 0)
+
+    def test_reads_spanning_100k_to_1000k(self):
+        self.assertEqual(self.stats['reads_spanning_100k_to_1000k'], 0)
+
+    def test_reads_spanning_greater_than_1000k(self):
+        self.assertEqual(self.stats['reads_spanning_greater_than_1000k'], 0)
+
     def test_count_num_pairs(self):
         self.assertEqual(self.stats['total_read_pairs'], 107)
 
@@ -122,7 +137,7 @@ class MyTestCase(unittest.TestCase):
 
     def test_dists_right_num_zeros(self):
         num_zeros = self.QC.dists[0]
-        self.assertEqual(num_zeros, self.stats['zero_dist_pairs'])
+        self.assertEqual(num_zeros, self.stats['zero_dist_pairs'],)
 
     def test_is_split_read_false(self):
         self.QCtmp.update_read_stats(self.example_read)
@@ -416,7 +431,7 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(self.QCtmp.judge_bad)
 
     def test_empty_bam(self):
-        bamfile = "/Users/hayleymangelson/PGTools/hic_qc/tests/collateral/input/abc_test.empty.bam"
+        bamfile = bamfile = self.input_dir + "abc_test.empty.bam"
         self.QCtmp.parse_bam(bamfile, max_read_pairs=1000)
         self.QCtmp.plot_dup_saturation()
         self.QCtmp.pass_judgement()
