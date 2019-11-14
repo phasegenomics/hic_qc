@@ -386,11 +386,6 @@ class HiCQC(object):
                 if (a.is_reverse and b.is_reverse) or (not a.is_reverse and not b.is_reverse):
                     self.stats['pairs_on_same_strand_hq'] += 1
 
-
-            ## add stuff starting around here
-
-            #-Low quality map rate(Q < 20)( %) *
-
             if dist > 10000:
                 self.stats['pairs_greater_10k'] += 1
             if dist == 0:
