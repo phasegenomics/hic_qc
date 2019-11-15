@@ -392,13 +392,15 @@ class HiCQC(object):
                 self.stats['zero_dist_pairs'] += 1
 
             ## Additional stats for dynamo table.
-            if 0 <= dist < 1e3:
+            if dist < 0:
+                raise ValueError('Error: Distance between reads is less than zero.')
+            elif dist < 1e3:
                 self.stats['reads_spanning_up_to_1k'] += 1
-            elif 1e3 <= dist < 1e4:
+            elif dist < 1e4:
                 self.stats['reads_spanning_1k_to_10k'] += 1
-            elif 1e4 <= dist < 1e5:
+            elif dist < 1e5:
                 self.stats['reads_spanning_10k_to_100k'] += 1
-            elif 1e5 <= dist < 1e6:
+            elif dist < 1e6:
                 self.stats['reads_spanning_100k_to_1000k'] += 1
             else:
                 self.stats['reads_spanning_greater_than_1000k'] += 1
