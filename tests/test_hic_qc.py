@@ -109,16 +109,16 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(self.stats['reads_spanning_up_to_1k'], 101)
 
     def test_reads_spanning_1k_to_10k(self):
-        self.assertEqual(self.stats['reads_spanning_1k_to_10k'], 0)
+        self.assertEqual(self.stats['reads_spanning_1k_to_10k'], 1)
 
     def test_reads_spanning_10k_to_100k(self):
-        self.assertEqual(self.stats['reads_spanning_10k_to_100k'], 0)
+        self.assertEqual(self.stats['reads_spanning_10k_to_100k'], 1)
 
     def test_reads_spanning_100k_to_1000k(self):
-        self.assertEqual(self.stats['reads_spanning_100k_to_1000k'], 1)
+        self.assertEqual(self.stats['reads_spanning_100k_to_1000k'], 2)
 
     def test_reads_spanning_greater_than_1000k(self):
-        self.assertEqual(self.stats['reads_spanning_greater_than_1000k'], 0)
+        self.assertEqual(self.stats['reads_spanning_greater_than_1000k'], 1)
 
     def test_all_reads(self):
         self.assertEqual(self.stats['reads_spanning_greater_than_1000k'] + self.stats['reads_spanning_100k_to_1000k']
@@ -127,16 +127,16 @@ class MyTestCase(unittest.TestCase):
             'total_reads'] / 2)
 
     def test_count_num_pairs(self):
-        self.assertEqual(self.stats['total_read_pairs'], 107)
+        self.assertEqual(self.stats['total_read_pairs'], 111)
 
     def test_count_gt_10kbp(self):
-        self.assertEqual(self.stats['pairs_greater_10k'], 1)
+        self.assertEqual(self.stats['pairs_greater_10k'], 4)
 
     def test_count_gt_10kbp_actual(self):
-        self.assertEqual(self.stats['pairs_greater_10k_on_contigs_greater_10k'], 1)
+        self.assertEqual(self.stats['pairs_greater_10k_on_contigs_greater_10k'], 4)
 
     def test_count_gt_10kbp_possible(self):
-        self.assertEqual(self.stats['pairs_on_contigs_greater_10k'], 65)
+        self.assertEqual(self.stats['pairs_on_contigs_greater_10k'], 69)
 
     def test_dists_right_len(self):
         self.assertEqual(sum(self.QC.dists.values()) + self.stats['intercontig_pairs'], self.stats['total_read_pairs'])

@@ -390,16 +390,19 @@ class HiCQC(object):
                 self.stats['pairs_greater_10k'] += 1
             if dist == 0:
                 self.stats['zero_dist_pairs'] += 1
-            if dist >= 0 and dist < 1000:
+
+            ## Additional stats for dynamo table.
+            if 0 <= dist < 1e3:
                 self.stats['reads_spanning_up_to_1k'] += 1
-            if dist >= 1000 and dist < 10000:
+            elif 1e3 <= dist < 1e4:
                 self.stats['reads_spanning_1k_to_10k'] += 1
-            if dist >= 10000 and dist < 100000:
+            elif 1e4 <= dist < 1e5:
                 self.stats['reads_spanning_10k_to_100k'] += 1
-            if dist >= 100000 and dist < 1000000:
+            elif 1e5 <= dist < 1e6:
                 self.stats['reads_spanning_100k_to_1000k'] += 1
-            if dist >= 1000000:
+            else:
                 self.stats['reads_spanning_greater_than_1000k'] += 1
+
             if a.reference_name in self.contigs_greater_10k:
                 self.stats['pairs_on_contigs_greater_10k'] += 1
                 if is_high_qual_pair:
