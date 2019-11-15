@@ -146,6 +146,11 @@ class HiCQC(object):
                                      'total_read_pairs',
                                      'total_read_pairs_hq',
                                      'zero_dist_pairs',
+                                     'reads_spanning_up_to_1k',
+                                     'reads_spanning_1k_to_10k',
+                                     'reads_spanning_10k_to_100k',
+                                     'reads_spanning_100k_to_1000k',
+                                     'reads_spanning_greater_than_1000k',
                                      ])
         # Dictionary of key --> numerator, denominator pairs for stringify_stats
         self.to_percents =    {
@@ -385,6 +390,21 @@ class HiCQC(object):
                 self.stats['pairs_greater_10k'] += 1
             if dist == 0:
                 self.stats['zero_dist_pairs'] += 1
+
+            ## Additional stats for dynamo table.
+            if dist < 0:
+                raise ValueError('Error: Distance between reads is less than zero.')
+            elif dist < 1e3:
+                self.stats['reads_spanning_up_to_1k'] += 1
+            elif dist < 1e4:
+                self.stats['reads_spanning_1k_to_10k'] += 1
+            elif dist < 1e5:
+                self.stats['reads_spanning_10k_to_100k'] += 1
+            elif dist < 1e6:
+                self.stats['reads_spanning_100k_to_1000k'] += 1
+            else:
+                self.stats['reads_spanning_greater_than_1000k'] += 1
+
             if a.reference_name in self.contigs_greater_10k:
                 self.stats['pairs_on_contigs_greater_10k'] += 1
                 if is_high_qual_pair:
