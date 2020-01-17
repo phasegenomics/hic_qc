@@ -84,7 +84,7 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
 | Duplicate reads (extrapolated)*                          | {extrapolated_dup_rate}        | 0-50%                               |
 | Alignment Parameters                                     | {alignment_command_line}       | N/A      
-| Library Enzyme                                           | {lib_enzyme}                   | N/A
+| Restriction Enzyme(s)                                           | {lib_enzyme}                   | N/A
 </center>
 
 <div class="small center">
