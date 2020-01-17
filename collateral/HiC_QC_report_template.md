@@ -3,6 +3,13 @@
 
 # Hi-C Library QC Report
 
+## Input Data
+
+| File Type         | File Name         |
+|:------------------| :--------------------|
+| BAM File          | {bamname}         |
+| Assembly File     | {ref_assembly}    |                                        
+
 ## {qc_purpose} Sufficiency
 
 | Label                                                    | Library statistics             | Expected values                               |
@@ -62,6 +69,7 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Label                        | Assembly statistics   |
 |:-----------------------------|-------------------------:|
 | BAM file                     | {bamname}             |
+| Assembly file                | {ref_assembly}
 | Assembly size                | {total_length}        |
 | Contig (CTG) N50             | {N50}                 |
 | CTGs                         | {contigs}             |
@@ -85,7 +93,7 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Duplicate reads (extrapolated)*                          | {extrapolated_dup_rate}        | 0-50%                               |
 | Alignment Parameters                                     | {alignment_command_line}       | N/A      
 | Samblaster Parameters                                    | {samblaster}                   | N/A
-| Restriction Enzyme(s)                                           | {lib_enzyme}                   | N/A
+| Restriction Enzyme(s)                                    | {lib_enzyme}                   | N/A
 </center>
 
 <div class="small center">

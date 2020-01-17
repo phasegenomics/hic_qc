@@ -320,6 +320,12 @@ class HiCQC(object):
         else:
              self.samblaster = 'samblaster command not found'
 
+        if 'PG' in header:
+            self.ref_assembly_path = re.search(r'(?<= /).*(?!\.fastq)(\.fasta|\.fna|\.fa)', header['PG'][0][
+                'CL']).group(0)
+            self.ref_assembly = self.ref_assembly_path.split('/')[-1].strip()
+        else:
+            self.ref_assembly = "reference assembly not found"
 
     def process_pair(self, a, b):
         '''Extract stats from a pair of reads.
@@ -945,6 +951,7 @@ class HiCQC(object):
                             'alignment_command_line': (self.bwa_command, '{}'),
                             'samblaster': (self.samblaster, '{}'),
                             'lib_enzyme': (' '.join(self.lib_enzyme), '{}'),
+                            'ref_assembly': (self.ref_assembly, '{}'),
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
