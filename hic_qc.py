@@ -90,7 +90,7 @@ class HiCQC(object):
     '''
 
     def __init__(self, outfile_prefix='Read_mate_dist', sample_type='genome', thresholds_file=None,
-                 rp_stats=None, mq_stats=None, edist_stats=None, lib_enzyme='unspecified'):
+                 rp_stats=None, mq_stats=None, edist_stats=None, lib_enzyme=None):
         '''Initialize metrics for later extraction and conversion.
         '''
         logging.basicConfig(format="[%(name)s - %(asctime)s] %(message)s", level=logging.INFO)
@@ -98,7 +98,7 @@ class HiCQC(object):
 
         self.sample_type = sample_type.lower()
         self.qc_purpose = 'Unknown'
-        self.lib_enzyme = lib_enzyme
+        self.lib_enzyme = lib_enzyme if lib_enzyme is not None else ['undefined']
 
         if self.sample_type == 'metagenome':
             self.qc_purpose = 'Metagenome Deconvolution'
@@ -950,7 +950,7 @@ class HiCQC(object):
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
                             'alignment_command_line': (self.bwa_command, '{}'),
                             'samblaster': (self.samblaster, '{}'),
-                            'lib_enzyme': (' '.join(self.lib_enzyme), '{}'),
+                            'lib_enzyme': (''.join(self.lib_enzyme), '{}'),
                             'ref_assembly': (self.ref_assembly, '{}'),
                             }
         self.out_stats = {}
