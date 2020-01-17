@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import pdfkit
 import markdown as md
 from scipy import optimize
+import re
 
 from _version import get_versions
 __version__ = get_versions()['version']
@@ -239,6 +240,8 @@ class HiCQC(object):
         with pysam.AlignmentFile(self.paths['bamfile']) as bam_fh:
             self.extract_header_info(bam_fh.header)
 
+            print(bam_fh)
+
             for read in bam_fh:
                 if read.is_secondary or read.is_supplementary:
                     continue
@@ -279,6 +282,8 @@ class HiCQC(object):
                 self.contigs_greater_10k (set(str)): The set of names of contigs with length > 10Kbp
                 self.contigs_greater_5k (set(str)): The set of names of contigs with length > 5Kbp
                 self.contigs_greater (dict(int-->set(str))): Dictionary with minimum lengths as keys and sets of contigs as values
+                self.command_line(str) : Full command-line argument used for alignment
+                self.bwa_command(str) : Subset of self.command_line containing only the BWA options used
 
             Raises:
                 ValueError if header labels bamfile as coordinate sorted
@@ -299,6 +304,9 @@ class HiCQC(object):
         if self.mapping_dict is not None:
             for min_size in self.mapping_dict.keys():
                 self.contigs_greater[min_size] = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > min_size])
+
+        self.command_line = header['PG'][0]['CL']
+        self.bwa_command = re.search(r'(bwa )[^//]*', self.command_line).group()
 
     def process_pair(self, a, b):
         '''Extract stats from a pair of reads.
@@ -921,6 +929,8 @@ class HiCQC(object):
                             'many_zero_dist_threshold': (100.0 * self.max_zero_dist_percentage, '{}'),
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
+                            'alignment_command_line': (self.bwa_command, '{}'),
+                            'lib_enzyme': (' '.join(args.lib_enzyme), '{}'),
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
@@ -1172,6 +1182,8 @@ def parse_args():
                         help='JSON file containing QC thresholds (Default: %(default)s)')
     parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')
+    parser.add_argument('--lib_enzyme', default='unspecified', nargs='+', type=str,
+                        help='Name of the enzyme(s) used for Hi-C library preparation.')
 
     args = parser.parse_args()
 
