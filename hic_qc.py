@@ -98,6 +98,8 @@ class HiCQC(object):
 
         self.sample_type = sample_type.lower()
         self.qc_purpose = 'Unknown'
+        self.lib_enzyme = lib_enzyme
+
         if self.sample_type == 'metagenome':
             self.qc_purpose = 'Metagenome Deconvolution'
         elif self.sample_type == 'genome':
@@ -930,7 +932,7 @@ class HiCQC(object):
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
                             'alignment_command_line': (self.bwa_command, '{}'),
-                            'lib_enzyme': (' '.join(args.lib_enzyme), '{}'),
+                            'lib_enzyme': (' '.join(self.lib_enzyme), '{}'),
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
@@ -1208,7 +1210,8 @@ if __name__ == "__main__":
                thresholds_file=args.thresholds,
                rp_stats=args.rp_stats,
                mq_stats=args.mq_stats,
-               edist_stats=args.edist_stats
+               edist_stats=args.edist_stats,
+               lib_enzyme=args.lib_enzyme
                )
 
     QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
