@@ -286,6 +286,7 @@ class HiCQC(object):
                 self.contigs_greater (dict(int-->set(str))): Dictionary with minimum lengths as keys and sets of contigs as values
                 self.command_line(str) : Full command-line argument used for alignment
                 self.bwa_command(str) : Subset of self.command_line containing only the BWA options used
+                self.samblaster(str) : Command used by samblaster
 
             Raises:
                 ValueError if header labels bamfile as coordinate sorted
@@ -307,8 +308,18 @@ class HiCQC(object):
             for min_size in self.mapping_dict.keys():
                 self.contigs_greater[min_size] = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > min_size])
 
-        self.command_line = header['PG'][0]['CL']
-        self.bwa_command = re.search(r'(bwa )[^//]*', self.command_line).group()
+
+        if 'PG' in header and 'bwa' in header['PG'][0]['CL']:
+            self.bwa_command_line = header['PG'][0]['CL']
+            self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
+        else:
+            self.bwa_command = 'BWA command not found'
+
+        if 'PG' in header and 'samblaster ' in header['PG'][1]['CL']:
+            self.samblaster = header['PG'][1]['CL']
+        else:
+             self.samblaster = 'samblaster command not found'
+
 
     def process_pair(self, a, b):
         '''Extract stats from a pair of reads.
@@ -932,6 +943,7 @@ class HiCQC(object):
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
                             'alignment_command_line': (self.bwa_command, '{}'),
+                            'samblaster': (self.samblaster, '{}'),
                             'lib_enzyme': (' '.join(self.lib_enzyme), '{}'),
                             }
         self.out_stats = {}
