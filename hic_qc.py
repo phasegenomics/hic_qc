@@ -90,7 +90,7 @@ class HiCQC(object):
     '''
 
     def __init__(self, outfile_prefix='Read_mate_dist', sample_type='genome', thresholds_file=None,
-                 rp_stats=None, mq_stats=None, edist_stats=None):
+                 rp_stats=None, mq_stats=None, edist_stats=None, lib_enzyme='unspecified'):
         '''Initialize metrics for later extraction and conversion.
         '''
         logging.basicConfig(format="[%(name)s - %(asctime)s] %(message)s", level=logging.INFO)
