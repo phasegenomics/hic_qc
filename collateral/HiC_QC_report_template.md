@@ -5,14 +5,14 @@
 
 ## Input Data
 
-| File Type         | File Name         |
+| File Type &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | File Name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;         |
 |:------------------| :--------------------|
 | BAM File          | {bamname}         |
 | Assembly File     | {ref_assembly}    |                                        
 
 ## {qc_purpose} Sufficiency
 
-| Label                                                    | Library statistics             | Expected values                               |
+| Label                                                  | Library statistics             | Expected values                               |
 | :-----------   |:-----------------:| --------------------:|
 | Subjective Hi-C library judgment                         | {judgment}                     | See Judgment           |
 | Same strand high-quality* (HQ) read pairs (RPs)          | {same_strand_hq_html}    | > {same_strand_threshold}%   |
