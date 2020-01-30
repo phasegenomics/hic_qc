@@ -242,8 +242,6 @@ class HiCQC(object):
         with pysam.AlignmentFile(self.paths['bamfile']) as bam_fh:
             self.extract_header_info(bam_fh.header)
 
-            print(bam_fh)
-
             for read in bam_fh:
                 if read.is_secondary or read.is_supplementary:
                     continue
@@ -284,9 +282,9 @@ class HiCQC(object):
                 self.contigs_greater_10k (set(str)): The set of names of contigs with length > 10Kbp
                 self.contigs_greater_5k (set(str)): The set of names of contigs with length > 5Kbp
                 self.contigs_greater (dict(int-->set(str))): Dictionary with minimum lengths as keys and sets of contigs as values
-                self.command_line(str) : Full command-line argument used for alignment
-                self.bwa_command(str) : Subset of self.command_line containing only the BWA options used
-                self.samblaster(str) : Command used by samblaster
+                self.command_line(str): Full command-line argument used for alignment
+                self.bwa_command(str): Subset of self.command_line containing only the BWA options used
+                self.samblaster(str): Command used by samblaster
 
             Raises:
                 ValueError if header labels bamfile as coordinate sorted
@@ -308,7 +306,7 @@ class HiCQC(object):
             for min_size in self.mapping_dict.keys():
                 self.contigs_greater[min_size] = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > min_size])
 
-
+        # TODO: add more robust logic to different BAM headers, and/or comment the assumptions made in this code
         if 'PG' in header and 'bwa' in header['PG'][0]['CL']:
             self.bwa_command_line = header['PG'][0]['CL']
             self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
@@ -950,7 +948,7 @@ class HiCQC(object):
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
                             'alignment_command_line': (self.bwa_command, '{}'),
                             'samblaster': (self.samblaster, '{}'),
-                            'lib_enzyme': (''.join(self.lib_enzyme), '{}'),
+                            'lib_enzyme': (', '.join(self.lib_enzyme), '{}'),
                             'ref_assembly': (self.ref_assembly, '{}'),
                             }
         self.out_stats = {}
@@ -1203,7 +1201,7 @@ def parse_args():
                         help='JSON file containing QC thresholds (Default: %(default)s)')
     parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')
-    parser.add_argument('--lib_enzyme', default='unspecified', nargs='+', type=str,
+    parser.add_argument('--lib_enzyme', default=['unspecified'], nargs='+', type=str,
                         help='Name of the enzyme(s) used for Hi-C library preparation.')
 
     args = parser.parse_args()
