@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import pdfkit
 import markdown as md
 from scipy import optimize
+import re
 
 from _version import get_versions
 __version__ = get_versions()['version']
@@ -89,7 +90,7 @@ class HiCQC(object):
     '''
 
     def __init__(self, outfile_prefix='Read_mate_dist', sample_type='genome', thresholds_file=None,
-                 rp_stats=None, mq_stats=None, edist_stats=None):
+                 rp_stats=None, mq_stats=None, edist_stats=None, lib_enzyme=None):
         '''Initialize metrics for later extraction and conversion.
         '''
         logging.basicConfig(format="[%(name)s - %(asctime)s] %(message)s", level=logging.INFO)
@@ -97,6 +98,8 @@ class HiCQC(object):
 
         self.sample_type = sample_type.lower()
         self.qc_purpose = 'Unknown'
+        self.lib_enzyme = lib_enzyme if lib_enzyme is not None else ['undefined']
+
         if self.sample_type == 'metagenome':
             self.qc_purpose = 'Metagenome Deconvolution'
         elif self.sample_type == 'genome':
@@ -281,6 +284,9 @@ class HiCQC(object):
                 self.contigs_greater_10k (set(str)): The set of names of contigs with length > 10Kbp
                 self.contigs_greater_5k (set(str)): The set of names of contigs with length > 5Kbp
                 self.contigs_greater (dict(int-->set(str))): Dictionary with minimum lengths as keys and sets of contigs as values
+                self.command_line(str): Full command-line argument used for alignment
+                self.bwa_command(str): Subset of self.command_line containing only the BWA options used
+                self.samblaster(str): Command used by samblaster
 
             Raises:
                 ValueError if header labels bamfile as coordinate sorted
@@ -301,6 +307,25 @@ class HiCQC(object):
         if self.mapping_dict is not None:
             for min_size in self.mapping_dict.keys():
                 self.contigs_greater[min_size] = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > min_size])
+
+        # TODO: add more robust logic to different BAM headers, and/or comment the assumptions made in this code
+        if 'PG' in header and 'bwa' in header['PG'][0]['CL']:
+            self.bwa_command_line = header['PG'][0]['CL']
+            self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
+        else:
+            self.bwa_command = 'BWA command not found'
+
+        if 'PG' in header and 'samblaster ' in header['PG'][1]['CL']:
+            self.samblaster = header['PG'][1]['CL']
+        else:
+             self.samblaster = 'samblaster command not found'
+
+        if 'PG' in header:
+            self.ref_assembly_path = re.search(r'(?<= /).*(?!\.fastq)(\.fasta|\.fna|\.fa)', header['PG'][0][
+                'CL']).group(0)
+            self.ref_assembly = self.ref_assembly_path.split('/')[-1].strip()
+        else:
+            self.ref_assembly = "reference assembly not found"
 
     def process_pair(self, a, b):
         '''Extract stats from a pair of reads.
@@ -923,6 +948,10 @@ class HiCQC(object):
                             'many_zero_dist_threshold': (100.0 * self.max_zero_dist_percentage, '{}'),
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
+                            'alignment_command_line': (self.bwa_command, '{}'),
+                            'samblaster': (self.samblaster, '{}'),
+                            'lib_enzyme': (', '.join(self.lib_enzyme), '{}'),
+                            'ref_assembly': (self.ref_assembly, '{}'),
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
@@ -1174,6 +1203,8 @@ def parse_args():
                         help='JSON file containing QC thresholds (Default: %(default)s)')
     parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')
+    parser.add_argument('--lib_enzyme', default=['unspecified'], nargs='+', type=str,
+                        help='Name of the enzyme(s) used for Hi-C library preparation.')
 
     args = parser.parse_args()
 
@@ -1198,7 +1229,8 @@ if __name__ == "__main__":
                thresholds_file=args.thresholds,
                rp_stats=args.rp_stats,
                mq_stats=args.mq_stats,
-               edist_stats=args.edist_stats
+               edist_stats=args.edist_stats,
+               lib_enzyme=args.lib_enzyme
                )
 
     QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)

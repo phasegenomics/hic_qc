@@ -3,9 +3,16 @@
 
 # Hi-C Library QC Report
 
+## Input Data
+
+| File Type &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | File Name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;         |
+|:------------------| :--------------------|
+| BAM File          | {bamname}         |
+| Assembly File     | {ref_assembly}    |                                        
+
 ## {qc_purpose} Sufficiency
 
-| Label                                                    | Library statistics             | Expected values                               |
+| Label                                                  | Library statistics             | Expected values                               |
 | :-----------   |:-----------------:| --------------------:|
 | Subjective Hi-C library judgment                         | {judgment}                     | See Judgment           |
 | Same strand high-quality* (HQ) read pairs (RPs)          | {same_strand_hq_html}    | > {same_strand_threshold}%   |
@@ -62,6 +69,7 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Label                        | Assembly statistics   |
 |:-----------------------------|-------------------------:|
 | BAM file                     | {bamname}             |
+| Assembly file                | {ref_assembly}
 | Assembly size                | {total_length}        |
 | Contig (CTG) N50             | {N50}                 |
 | CTGs                         | {contigs}             |
@@ -83,6 +91,9 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
 | Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
 | Duplicate reads (extrapolated)*                          | {extrapolated_dup_rate}        | 0-50%                               |
+| Alignment Parameters                                     | {alignment_command_line}       | N/A      
+| Samblaster Parameters                                    | {samblaster}                   | N/A
+| Restriction Enzyme(s)                                    | {lib_enzyme}                   | N/A
 </center>
 
 <div class="small center">
