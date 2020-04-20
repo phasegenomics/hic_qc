@@ -25,6 +25,11 @@ import unittest
 import hic_qc
 import pysam
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
 class MyTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(self):
