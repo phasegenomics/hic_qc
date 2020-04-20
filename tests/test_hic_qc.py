@@ -449,5 +449,10 @@ class MyTestCase(unittest.TestCase):
         self.QCtmp.write_dists_file()
         self.QCtmp.write_pdf_report(quiet=True)
 
+    def test_bad_report_path(self):
+        self.QCtmp.paths["script_dir"] = "/not/a/path"
+        with self.assertRaises(FileNotFoundError):
+            self.QCtmp.write_pdf_report(quiet=True)
+
 if __name__ == '__main__':
     unittest.main()

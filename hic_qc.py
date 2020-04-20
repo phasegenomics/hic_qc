@@ -1147,10 +1147,9 @@ class HiCQC(object):
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
 
         if not os.path.exists(template_path):
-            UserWarning("Can't find markdown template at {}! Exitting...".format(
-                qc_repo_path)
+            raise FileNotFoundError("Can't find markdown template at {}! Exitting...".format(
+                template_path)
             )
-            sys.exit(1)
 
         with open(template_path) as template_fh:
             template_string = template_fh.read()
