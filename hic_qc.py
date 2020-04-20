@@ -1152,12 +1152,7 @@ class HiCQC(object):
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
 
         if not os.path.exists(template_path):
-            raise FileNotFoundError("Can't find markdo
-
-            try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = IOErrorwn template at {}! Exitting...".format(
+            raise FileNotFoundError("Can't find markdown template at {}! Exitting...".format(
                 template_path)
             )
 
