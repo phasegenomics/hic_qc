@@ -318,7 +318,7 @@ class HiCQC(object):
         if 'PG' in header:
             self.ref_assembly_path = re.search(r'(?<= /).*(?!\.fastq)(\.fasta|\.fna|\.fa)', header['PG'][0][
                 'CL']).group(0)
-            self.ref_assembly = self.ref_assembly_path.split('/')[-1].strip()
+            self.ref_assembly = os.path.basename(self.ref_assembly_path.strip())
         else:
             self.ref_assembly = "reference assembly not found"
 
