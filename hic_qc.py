@@ -30,6 +30,11 @@ import re
 from _version import get_versions
 __version__ = get_versions()['version']
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
 # default QC thresholds if there is no thresholds file
 DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.015
 DEFAULT_MIN_INFORMATIVE_READ_PAIRS_PERCENTAGE   =   0.05
@@ -1147,7 +1152,12 @@ class HiCQC(object):
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
 
         if not os.path.exists(template_path):
-            raise FileNotFoundError("Can't find markdown template at {}! Exitting...".format(
+            raise FileNotFoundError("Can't find markdo
+
+            try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOErrorwn template at {}! Exitting...".format(
                 template_path)
             )
 
