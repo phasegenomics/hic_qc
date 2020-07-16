@@ -8,7 +8,7 @@ hic_qc/test_hic_qc.py
 
 This file contains unit tests for functions of the hic_qc.py script.
 
-Copyright 2018, Phase Genomics Inc. All rights reserved.
+Copyright 2020, Phase Genomics Inc. All rights reserved.
 
 The contents of this file are proprietary and private and are not intended for
 distribution or use by any person or entity except Phase Genomics. You may not
