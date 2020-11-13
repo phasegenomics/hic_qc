@@ -220,7 +220,7 @@ class HiCQC(object):
                              'to QC Hi-C library quality'.format(max_read_pairs, bamfile))
         else:
             self.logger.info('parsing all read pairs in bam file {} '\
-                             'to QC Hi-C library quality'.format(max_read_pairs, bamfile))
+                             'to QC Hi-C library quality'.format(bamfile))
 
         self.paths['bamfile'] = bamfile
         self.paths['bamname'] = os.path.basename(bamfile)
