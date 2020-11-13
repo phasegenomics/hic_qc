@@ -32,17 +32,14 @@
 | Label                                         | Library statistics             | Expected values                               |
 | :-----------   |:-----------------:| --------------------:|
 | Fraction of HQ RPs >10KB apart (CTGs >10KB)*      | {long_contacts_html} | > {long_contacts_threshold}%                                  |
-| Fraction of HQ RPs Intercontig on CTGs >10KB**    | {intercontig_hq_contacts_html}       | > {intercontig_hq_contacts_threshold}%                                   |
-| Clustering usable HQ reads per contig (CTGs >5KB)***         | {usable_hq_gt_5k_html}          | > {usable_hq_gt_5k_threshold}                               |
+| Fraction of HQ RPs Intercontig (CTGs >10KB)**    | {intercontig_hq_contacts_html}       | > {intercontig_hq_contacts_threshold}%                                   |
+| Informative HQ RPs per-contig per-1M-RPs (CTGs >5KB)***         | {usable_hq_gt_5k_per_million_html}          | > {min_usable_reads_per_contig_per_million_threshold}                               |
 
 <div class="small center">
 <br />
 *The proportion of <em>read pairs that span at least 10kbp</em>, out of all read pairs that map (a) with high-quality, (b) to the same contig, (c) where that contig is at least 10kbp long.<br>
 **The proportion of <em>read pairs mapping to two different contigs each greater than 10kbp</em>, out of all read pairs that map with high-quality.<br>
-***The average number of usable high-quality read pairs per contig, for contigs greater than 5kbp. Read pairs are "usable" if they map (a) with high-quality, (b) to different contigs, (c) where each of
-those contigs are greater than 5kbp and (c) both mappings are high-quality.<br>
-<br />
-See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
+***The average number of HQ reads, per contig <em>among contigs at least 5kbp in length</em>, per million read pairs, that are informative for identifying contigs which belong on the same chromosome.<br>
 </div>
 
 ## Noninformative Read Pair Breakdown
@@ -59,8 +56,6 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 <br />
 *Note that the sum of informative and noninformative read pairs is not 100% because read pairs with mapping distance between 1 and 10 Kbp are not classified as either informative or noninformative.<br>
 Because noninformative reads can belong to more than one category, these numbers may sum to a value larger than the overall noninformative read pair amount at the top of the report.<br>
-<br />
-See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 </div>
 
 
@@ -88,6 +83,7 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | :-----------                                             | --------------------:| --------------------:|
 | Total read pairs (RPs) analyzed                          | {total_read_pairs}             | N/A                                           |
 | High quality (HQ) RPs                                    | {perc_hq_rp}                   | N/A                                           |
+| Clustering usable HQ reads per contig (CTGs >5KB)*         | {usable_hq_gt_5k_html}          | > {usable_hq_gt_5k_threshold}                               |
 | RPs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                     |
 | RPs >10KB apart (CTGs >10KB)                             | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%    |
 | Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
@@ -98,6 +94,11 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Samblaster Parameters                                    | {samblaster}                   | N/A
 | Restriction Enzyme(s)                                    | {lib_enzyme}                   | N/A
 </center>
+
+<div class="small center">
+<br />
+*The average number of usable high-quality read pairs per contig, for contigs greater than 5kbp. Read pairs are "usable" if they map (a) with high-quality, (b) to different contigs, (c) where each of those contigs are greater than 5kbp and (d) both mappings are high-quality.<br>
+</div>
 
 <div class="pagebreak"> </div>
 

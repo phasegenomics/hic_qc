@@ -42,6 +42,7 @@ DEFAULT_MAX_NONINFORMATIVE_READ_PAIR_PERCENTAGE =   0.50
 DEFAULT_MIN_LONG_CONTACT_PERCENTAGE             =   0.03
 DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE      =   0.025
 DEFAULT_MIN_USABLE_READS_PER_CONTIG             =   600
+DEFAULT_MIN_USABLE_READS_PER_CONTIG_PER_MILLION =   100000
 DEFAULT_MAX_DUPE_PERCENTAGE                     =   0.40
 DEFAULT_MAX_ZERO_DIST_PERCENTAGE                =   0.20
 DEFAULT_MAX_ZERO_MAPQ0_PERCENTAGE               =   0.20
@@ -103,6 +104,7 @@ class HiCQC(object):
             self.min_long_contact_percentage                =   DEFAULT_MIN_LONG_CONTACT_PERCENTAGE
             self.min_intercontig_contact_percentage         =   DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE
             self.min_usable_reads_per_contig                =   DEFAULT_MIN_USABLE_READS_PER_CONTIG
+            self.min_usable_reads_per_contig_per_million    =   DEFAULT_MIN_USABLE_READS_PER_CONTIG_PER_MILLION
             self.max_dupe_percentage                        =   DEFAULT_MAX_DUPE_PERCENTAGE
             self.max_zero_dist_percentage                   =   DEFAULT_MAX_ZERO_DIST_PERCENTAGE
             self.max_zero_mapq0_percentage                  =   DEFAULT_MAX_ZERO_MAPQ0_PERCENTAGE
@@ -117,6 +119,7 @@ class HiCQC(object):
             self.min_long_contact_percentage                =   float(thresholds[sample_type]['MIN_LONG_CONTACT_PERCENTAGE'])
             self.min_intercontig_contact_percentage         =   float(thresholds[sample_type]['MIN_INTERCONTIG_CONTACT_PERCENTAGE'])
             self.min_usable_reads_per_contig                =   float(thresholds[sample_type]['MIN_USABLE_READS_PER_CONTIG'])
+            self.min_usable_reads_per_contig_per_million    =   float(thresholds[sample_type]['MIN_USABLE_READS_PER_CONTIG_PER_MILLION'])
             self.max_dupe_percentage                        =   float(thresholds[sample_type]['MAX_DUPE_PERCENTAGE'])
             self.max_zero_dist_percentage                   =   float(thresholds[sample_type]['MAX_ZERO_DIST_PERCENTAGE'])
             self.max_zero_mapq0_percentage                  =   float(thresholds[sample_type]['MAX_ZERO_MAPQ0_PERCENTAGE'])
@@ -168,7 +171,8 @@ class HiCQC(object):
                                }
         self.to_round = set([
                              'proximo_usable_rp_per_ctg_gt_5k',
-                             'proximo_usable_rp_hq_per_ctg_gt_5k'
+                             'proximo_usable_rp_hq_per_ctg_gt_5k',
+                             'proximo_usable_rp_hq_per_ctg_gt_5k_per_million'
                              ])
 
         self.convert_to_pairs = set(['unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
@@ -313,7 +317,6 @@ class HiCQC(object):
                 elif token_proc.endswith('_r2.fastq') or token_proc.endswith('_r2.fq') \
                     or token_proc.endswith('_r2.fastq.gz') or token_proc.endswith('_r2.fq.gz'):
                     self.rev_hic_reads = os.path.basename(token)
-            self.fwd_hic_reads = self.rev_hic_reads
             if self.fwd_hic_reads == self.rev_hic_reads:
                 self.fwd_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.fwd_hic_reads)
                 self.rev_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.rev_hic_reads)
@@ -520,9 +523,11 @@ class HiCQC(object):
         if len(self.contigs_greater_5k) > 0:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (self.stats['total_read_pairs'] / 1e6)
         else:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = 0
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 0
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = 0
 
         if self.mapping_dict is not None:
             self.write_mapping_stats()
@@ -712,9 +717,14 @@ class HiCQC(object):
             self.intercontig_hq_contacts_html = '<span class="fail">{0}</span>'
 
         if self.good_usable_reads:
-            self.usable_hq_gt_5k_html = '<span class="pass">{0}</span>'
+            self.usable_hq_gt_5k_html = '<span>{0}</span>'
         else:
-            self.usable_hq_gt_5k_html = '<span class="fail">{0}</span>'
+            self.usable_hq_gt_5k_html = '<span>{0}</span>'
+        
+        if self.good_usable_reads_per_million:
+            self.usable_hq_gt_5k__per_million_html = '<span class="pass">{0}</span>'
+        else:
+            self.usable_hq_gt_5k__per_million_html = '<span class="fail">{0}</span>'
 
         # noninformative reads breakdown
         if not self.bad_noninformative_read_pairs:
@@ -770,6 +780,8 @@ class HiCQC(object):
                                          self.min_intercontig_contact_percentage
         self.good_usable_reads         = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k']) > \
                                          self.min_usable_reads_per_contig
+        self.good_usable_reads_per_million = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million']) > \
+                                         self.min_usable_reads_per_contig_per_million
 
         # noninformative read breakdown
         # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
@@ -826,6 +838,7 @@ class HiCQC(object):
                             'long_contacts_threshold': (100.0 * self.min_long_contact_percentage, '{}'),
                             'intercontig_hq_contacts_threshold': (100.0 * self.min_intercontig_contact_percentage, '{}'),
                             'usable_hq_gt_5k_threshold': (self.min_usable_reads_per_contig, '{}'),
+                            'min_usable_reads_per_contig_per_million_threshold': (self.min_usable_reads_per_contig_per_million, '{}'),
                             'high_dupe_threshold': (100.0 * self.max_dupe_percentage * self.allowed_dupe_percentage, '{}'),
                             'many_zero_dist_threshold': (100.0 * self.max_zero_dist_percentage, '{}'),
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
@@ -874,6 +887,7 @@ class HiCQC(object):
         self.out_stats['long_contacts_html'] = self.long_contacts_html.format(self.out_stats['perc_pairs_intra_hq_gt10kbp'])
         self.out_stats['intercontig_hq_contacts_html'] = self.intercontig_hq_contacts_html.format(self.out_stats['perc_intercontig_pairs_hq_gt10kbp'])
         self.out_stats['usable_hq_gt_5k_html'] = self.usable_hq_gt_5k_html.format(self.out_stats['proximo_usable_rp_hq_per_ctg_gt_5k'])
+        self.out_stats['usable_hq_gt_5k_per_million_html'] = self.usable_hq_gt_5k__per_million_html.format(self.out_stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'])
         # noninformative breakdown
         self.out_stats['high_dupe_html'] = self.high_dupe_html.format(self.out_stats['perc_duplicate_reads'])
         self.out_stats['many_zero_dist_pairs_html'] = self.many_zero_dist_pairs_html.format(self.out_stats['perc_zero_dist_pairs'])
