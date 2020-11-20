@@ -8,7 +8,7 @@ hic_qc/test_hic_qc.py
 
 This file contains unit tests for functions of the hic_qc.py script.
 
-Copyright 2018, Phase Genomics Inc. All rights reserved.
+Copyright 2020, Phase Genomics Inc. All rights reserved.
 
 The contents of this file are proprietary and private and are not intended for
 distribution or use by any person or entity except Phase Genomics. You may not
@@ -24,6 +24,11 @@ import sys
 import unittest
 import hic_qc
 import pysam
+
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 
 class MyTestCase(unittest.TestCase):
     @classmethod
@@ -105,17 +110,38 @@ class MyTestCase(unittest.TestCase):
     def test_count_zero_dist_pairs(self):
         self.assertEqual(self.stats['zero_dist_pairs'], 38)
 
+    def test_reads_spanning_up_to_1k(self):
+        self.assertEqual(self.stats['reads_spanning_up_to_1k'], 101)
+
+    def test_reads_spanning_1k_to_10k(self):
+        self.assertEqual(self.stats['reads_spanning_1k_to_10k'], 1)
+
+    def test_reads_spanning_10k_to_100k(self):
+        self.assertEqual(self.stats['reads_spanning_10k_to_100k'], 1)
+
+    def test_reads_spanning_100k_to_1000k(self):
+        self.assertEqual(self.stats['reads_spanning_100k_to_1000k'], 2)
+
+    def test_reads_spanning_greater_than_1000k(self):
+        self.assertEqual(self.stats['reads_spanning_greater_than_1000k'], 1)
+
+    def test_all_reads(self):
+        self.assertEqual(self.stats['reads_spanning_greater_than_1000k'] + self.stats['reads_spanning_100k_to_1000k']
+                         + self.stats['reads_spanning_10k_to_100k'] + self.stats['reads_spanning_1k_to_10k'] +
+                         self.stats['reads_spanning_up_to_1k'] + self.stats['intercontig_pairs'], self.stats[
+            'total_reads'] / 2)
+
     def test_count_num_pairs(self):
-        self.assertEqual(self.stats['total_read_pairs'], 107)
+        self.assertEqual(self.stats['total_read_pairs'], 111)
 
     def test_count_gt_10kbp(self):
-        self.assertEqual(self.stats['pairs_greater_10k'], 1)
+        self.assertEqual(self.stats['pairs_greater_10k'], 4)
 
     def test_count_gt_10kbp_actual(self):
-        self.assertEqual(self.stats['pairs_greater_10k_on_contigs_greater_10k'], 1)
+        self.assertEqual(self.stats['pairs_greater_10k_on_contigs_greater_10k'], 4)
 
     def test_count_gt_10kbp_possible(self):
-        self.assertEqual(self.stats['pairs_on_contigs_greater_10k'], 65)
+        self.assertEqual(self.stats['pairs_on_contigs_greater_10k'], 69)
 
     def test_dists_right_len(self):
         self.assertEqual(sum(self.QC.dists.values()) + self.stats['intercontig_pairs'], self.stats['total_read_pairs'])
@@ -418,7 +444,6 @@ class MyTestCase(unittest.TestCase):
     def test_empty_bam(self):
         bamfile = self.input_dir + "abc_test.empty.bam"
         self.QCtmp.parse_bam(bamfile, max_read_pairs=1000)
-        self.QCtmp.plot_dup_saturation()
         self.QCtmp.pass_judgement()
         self.QCtmp.html_from_judgement()
         self.QCtmp.plot_histograms()
@@ -427,6 +452,11 @@ class MyTestCase(unittest.TestCase):
         self.QCtmp.write_stat_table()
         self.QCtmp.write_dists_file()
         self.QCtmp.write_pdf_report(quiet=True)
+
+    def test_bad_report_path(self):
+        self.QCtmp.paths["script_dir"] = "/not/a/path"
+        with self.assertRaises(FileNotFoundError):
+            self.QCtmp.write_pdf_report(quiet=True)
 
 if __name__ == '__main__':
     unittest.main()

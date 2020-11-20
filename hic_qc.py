@@ -25,9 +25,15 @@ import matplotlib.pyplot as plt
 import pdfkit
 import markdown as md
 from scipy import optimize
+import re
 
 from _version import get_versions
 __version__ = get_versions()['version']
+
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 
 # default QC thresholds if there is no thresholds file
 DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.015
@@ -36,24 +42,11 @@ DEFAULT_MAX_NONINFORMATIVE_READ_PAIR_PERCENTAGE =   0.50
 DEFAULT_MIN_LONG_CONTACT_PERCENTAGE             =   0.03
 DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE      =   0.025
 DEFAULT_MIN_USABLE_READS_PER_CONTIG             =   600
+DEFAULT_MIN_USABLE_READS_PER_CONTIG_PER_MILLION =   100000
 DEFAULT_MAX_DUPE_PERCENTAGE                     =   0.40
 DEFAULT_MAX_ZERO_DIST_PERCENTAGE                =   0.20
 DEFAULT_MAX_ZERO_MAPQ0_PERCENTAGE               =   0.20
 DEFAULT_MAX_UNMAPPED_PERCENTAGE                 =   0.10
-
-def saturation(x, V, K):
-    '''Computes non-duplicate read count given x reads and parameters V and K.
-    Intended for use within scipy optimize.
-
-    Args:
-        x (int): Read count
-        V (float): Optimization parameter
-        K (float): Optimization parameter
-    Returns:
-        (float) Estimated non-duplicate read count
-    '''
-
-    return V * x / (x + K)
 
 def calc_nxx(header, xx=50):
     '''Calculate the NXX (typically N50) of an assembly given a pysam.AlignmentHeader object.
@@ -89,7 +82,7 @@ class HiCQC(object):
     '''
 
     def __init__(self, outfile_prefix='Read_mate_dist', sample_type='genome', thresholds_file=None,
-                 rp_stats=None, mq_stats=None, edist_stats=None):
+                 rp_stats=None, mq_stats=None, edist_stats=None, lib_enzyme=None):
         '''Initialize metrics for later extraction and conversion.
         '''
         logging.basicConfig(format="[%(name)s - %(asctime)s] %(message)s", level=logging.INFO)
@@ -97,6 +90,8 @@ class HiCQC(object):
 
         self.sample_type = sample_type.lower()
         self.qc_purpose = 'Unknown'
+        self.lib_enzyme = lib_enzyme if lib_enzyme is not None else ['undefined']
+
         if self.sample_type == 'metagenome':
             self.qc_purpose = 'Metagenome Deconvolution'
         elif self.sample_type == 'genome':
@@ -109,6 +104,7 @@ class HiCQC(object):
             self.min_long_contact_percentage                =   DEFAULT_MIN_LONG_CONTACT_PERCENTAGE
             self.min_intercontig_contact_percentage         =   DEFAULT_MIN_INTERCONTIG_CONTACT_PERCENTAGE
             self.min_usable_reads_per_contig                =   DEFAULT_MIN_USABLE_READS_PER_CONTIG
+            self.min_usable_reads_per_contig_per_million    =   DEFAULT_MIN_USABLE_READS_PER_CONTIG_PER_MILLION
             self.max_dupe_percentage                        =   DEFAULT_MAX_DUPE_PERCENTAGE
             self.max_zero_dist_percentage                   =   DEFAULT_MAX_ZERO_DIST_PERCENTAGE
             self.max_zero_mapq0_percentage                  =   DEFAULT_MAX_ZERO_MAPQ0_PERCENTAGE
@@ -123,6 +119,7 @@ class HiCQC(object):
             self.min_long_contact_percentage                =   float(thresholds[sample_type]['MIN_LONG_CONTACT_PERCENTAGE'])
             self.min_intercontig_contact_percentage         =   float(thresholds[sample_type]['MIN_INTERCONTIG_CONTACT_PERCENTAGE'])
             self.min_usable_reads_per_contig                =   float(thresholds[sample_type]['MIN_USABLE_READS_PER_CONTIG'])
+            self.min_usable_reads_per_contig_per_million    =   float(thresholds[sample_type]['MIN_USABLE_READS_PER_CONTIG_PER_MILLION'])
             self.max_dupe_percentage                        =   float(thresholds[sample_type]['MAX_DUPE_PERCENTAGE'])
             self.max_zero_dist_percentage                   =   float(thresholds[sample_type]['MAX_ZERO_DIST_PERCENTAGE'])
             self.max_zero_mapq0_percentage                  =   float(thresholds[sample_type]['MAX_ZERO_MAPQ0_PERCENTAGE'])
@@ -174,7 +171,8 @@ class HiCQC(object):
                                }
         self.to_round = set([
                              'proximo_usable_rp_per_ctg_gt_5k',
-                             'proximo_usable_rp_hq_per_ctg_gt_5k'
+                             'proximo_usable_rp_hq_per_ctg_gt_5k',
+                             'proximo_usable_rp_hq_per_ctg_gt_5k_per_million'
                              ])
 
         self.convert_to_pairs = set(['unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
@@ -222,7 +220,7 @@ class HiCQC(object):
                              'to QC Hi-C library quality'.format(max_read_pairs, bamfile))
         else:
             self.logger.info('parsing all read pairs in bam file {} '\
-                             'to QC Hi-C library quality'.format(max_read_pairs, bamfile))
+                             'to QC Hi-C library quality'.format(bamfile))
 
         self.paths['bamfile'] = bamfile
         self.paths['bamname'] = os.path.basename(bamfile)
@@ -246,6 +244,8 @@ class HiCQC(object):
                 if read.query_name == a.query_name:
                     b = read
                     self.process_pair(a, b)
+                    a = None
+                    b = None
                 else:
                     a = read
 
@@ -274,6 +274,9 @@ class HiCQC(object):
                 self.contigs_greater_10k (set(str)): The set of names of contigs with length > 10Kbp
                 self.contigs_greater_5k (set(str)): The set of names of contigs with length > 5Kbp
                 self.contigs_greater (dict(int-->set(str))): Dictionary with minimum lengths as keys and sets of contigs as values
+                self.command_line(str): Full command-line argument used for alignment
+                self.bwa_command(str): Subset of self.command_line containing only the BWA options used
+                self.samblaster(str): Command used by samblaster
 
             Raises:
                 ValueError if header labels bamfile as coordinate sorted
@@ -294,6 +297,37 @@ class HiCQC(object):
         if self.mapping_dict is not None:
             for min_size in self.mapping_dict.keys():
                 self.contigs_greater[min_size] = set([contig['SN'] for contig in header['SQ'] if contig['LN'] > min_size])
+
+        # TODO: add more robust logic to different BAM headers, and/or comment the assumptions made in this code
+        if 'PG' in header and 'bwa' in header['PG'][0]['CL']:
+            self.bwa_command_line = header['PG'][0]['CL']
+            self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
+            self.ref_assembly = "reference assembly not found"
+            self.fwd_hic_reads = "forward Hi-C reads not found"
+            self.rev_hic_reads = "reverse Hi-C reads not found"
+            bwa_command_elements = self.bwa_command_line.split()
+            for token in bwa_command_elements:
+                token_proc = token.strip().lower()
+                if token_proc.endswith('.fasta') or token_proc.endswith('.fa') or token_proc.endswith('.fna') \
+                    or token_proc.endswith('.fasta.gz') or token_proc.endswith('.fa.gz') or token_proc.endswith('fna.gz'):
+                    self.ref_assembly = os.path.basename(token)
+                elif token_proc.endswith('_r1.fastq') or token_proc.endswith('_r1.fq') \
+                    or token_proc.endswith('_r1.fastq.gz') or token_proc.endswith('_r1.fq.gz'):
+                    self.fwd_hic_reads = os.path.basename(token)
+                elif token_proc.endswith('_r2.fastq') or token_proc.endswith('_r2.fq') \
+                    or token_proc.endswith('_r2.fastq.gz') or token_proc.endswith('_r2.fq.gz'):
+                    self.rev_hic_reads = os.path.basename(token)
+            if self.fwd_hic_reads == self.rev_hic_reads:
+                self.fwd_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.fwd_hic_reads)
+                self.rev_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.rev_hic_reads)
+                     
+        else:
+            self.bwa_command = 'BWA command not found'
+
+        if 'PG' in header and 'samblaster ' in header['PG'][1]['CL']:
+            self.samblaster = header['PG'][1]['CL']
+        else:
+             self.samblaster = 'samblaster command not found'
 
     def process_pair(self, a, b):
         '''Extract stats from a pair of reads.
@@ -385,6 +419,21 @@ class HiCQC(object):
                 self.stats['pairs_greater_10k'] += 1
             if dist == 0:
                 self.stats['zero_dist_pairs'] += 1
+
+            ## Additional stats for dynamo table.
+            if dist < 0:
+                raise ValueError('Error: Distance between reads is less than zero.')
+            elif dist < 1e3:
+                self.stats['reads_spanning_up_to_1k'] += 1
+            elif dist < 1e4:
+                self.stats['reads_spanning_1k_to_10k'] += 1
+            elif dist < 1e5:
+                self.stats['reads_spanning_10k_to_100k'] += 1
+            elif dist < 1e6:
+                self.stats['reads_spanning_100k_to_1000k'] += 1
+            else:
+                self.stats['reads_spanning_greater_than_1000k'] += 1
+
             if a.reference_name in self.contigs_greater_10k:
                 self.stats['pairs_on_contigs_greater_10k'] += 1
                 if is_high_qual_pair:
@@ -474,9 +523,11 @@ class HiCQC(object):
         if len(self.contigs_greater_5k) > 0:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (self.stats['total_read_pairs'] / 1e6)
         else:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = 0
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 0
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = 0
 
         if self.mapping_dict is not None:
             self.write_mapping_stats()
@@ -504,115 +555,6 @@ class HiCQC(object):
                     for ed in self.edist_stats:
                         count = self.mapping_dict[min_size][mapq][ed]
                         print(ed, mapq, min_size, count, sep='\t', file=outfile)
-
-    def plot_dup_saturation(self, target_x=100000000, min_sample=100000, target_y=None):
-        '''Fit and plot a saturation curve from cumulative total and non-dup read counts.
-
-            Args:
-                target_x (int): Total reads to extrapolate to.
-                target_y (int): Non-dup reads to extrapolate to. If specified with target_x, plots a point.
-
-            Uses:
-                self.paths['outfile_prefix'] (str): Path prefix for output files.
-                self.total_array (np.array(int)): Numpy array of total reads, recorded every 1000 reads.
-                self.non_dup_array (np.array(int)): Numpy array of non-duplicate read counts, recorded every 1000 reads.
-
-            Sets:
-                self.stats['observed_dup_rate'] (float): Observed rate of read duplication
-                self.stats['extrapolated_dup_rate'] (float): Rate of duplication extrapolated to target_read_total
-                self.stats['target_read_total'] (int): Read count to extrapolate to.
-                self.stats['dup_sat_V'] (float): Optimization parameter for saturation curve.
-                self.stats['dup_sat_K'] (float): Optimization parameter for saturation curve.
-                self.paths['dup_sat_curve'] (str): Path to dup_sat_curve plot.
-        '''
-
-        self.stats['observed_dup_rate'] = -1
-        self.stats['extrapolated_dup_rate'] = -1
-        self.stats['target_read_total'] = target_x
-        self.stats['dup_sat_V'] = -1
-        self.stats['dup_sat_K'] = -1
-
-        outfile = self.paths['outfile_prefix'] + '.dup_saturation.png'
-        self.paths['dup_sat_curve'] = outfile
-
-        if self.total_array.size == 0 or self.total_array[-1] < min_sample:
-            UserWarning('too few reads to estimate duplication rate (<{0})!!'.format(min_sample))
-            fig, ax = plt.subplots(1)
-            plt.title('Insufficient reads to estimate duplication rate!!!')
-            plt.savefig(outfile)
-            plt.close()
-            return 0
-
-        try:
-            params, params_cov = optimize.curve_fit(saturation,
-                                                    self.total_array,
-                                                    self.non_dup_array,
-                                                    p0=[self.total_array[-1],
-                                                        self.non_dup_array[-1]/2],
-                                                    maxfev=6000
-                                                    )
-        except RuntimeError as e:
-            UserWarning('Convergence failed for duplicate curve fitting')
-            fig, ax = plt.subplots(1)
-            plt.title('Convergence failed for duplicate curve fitting!!!')
-            plt.savefig(outfile)
-            plt.close()
-            return 0
-
-        self.stats['dup_sat_V'] = params[0]
-        self.stats['dup_sat_K'] = params[1]
-
-        if target_x is not None:
-            # print(args.target_x.dtype)
-            coord_max = target_x
-            t = np.linspace(0, target_x, 1000)
-        elif target_y is not None:
-            coord_max = target_y
-            x_temp = self.total_array[-1]
-            y_temp = saturation(x_temp, *params)
-            while y_temp < args.target_y:
-                x_temp += 1000000
-                y_temp = saturation(x_temp, *params)
-            t = np.linspace(0, x_temp, 1000)
-        else:
-            coord_max = self.total_array[-1]
-            t = np.linspace(0, self.total_array[-1], 1000)
-
-        fig, ax = plt.subplots(1)
-        plt.plot(self.total_array, self.non_dup_array, 'k')
-        plt.plot(t, saturation(t, *params), 'r-')
-
-        self.stats['observed_dup_rate'] = 1-float(self.non_dup_array[-1])/self.total_array[-1]
-        non_dup_rate = None
-
-        if target_x is not None:
-            self.logger.info('At {} reads, estimated {:.0f} non-dup reads'.format(target_x, saturation(target_x, *params)))
-            self.logger.info('True non-dup reads: {}'.format(target_y))
-            non_dup_rate = saturation(target_x, *params) / float(target_x)
-            if target_y is not None:
-                plt.plot(target_x, target_y, 'bo')
-        self.stats['extrapolated_dup_rate'] = 1-non_dup_rate if non_dup_rate is not None else None
-
-        patch = matplotlib.patches.Rectangle((0, 0), self.total_array[-1], self.non_dup_array[-1], fill=False, color='k')
-        ax.add_patch(patch)
-        plt.ylim(0, coord_max)
-        plt.xlim(0, coord_max)
-
-        if non_dup_rate is not None:
-            plt.title('{}\nproportion duplicated (sampled): {:.2f}\nproportion duplicated (extrapolated): {:.2f}'.format(
-                self.paths['bamname'], self.stats['observed_dup_rate'], 1-non_dup_rate))
-        else:
-            plt.title('{}\nproportion duplicated (sampled): {:.2f}'.format(
-                self.paths['bamname'], self.stats['observed_dup_rate']))
-        plt.xlabel('Total reads')
-        plt.ylabel('Non-duplicate reads')
-        plt.tight_layout()
-        plt.savefig(outfile)
-        plt.close()
-
-        self.logger.info('Best V = {}, best K = {}'.format(self.stats['dup_sat_V'], self.stats['dup_sat_K']))
-
-        return 0
 
     def plot_histograms(self):
         '''Make the read distance long, short, and log_log histograms using matplotlib and write them to disk.
@@ -775,9 +717,14 @@ class HiCQC(object):
             self.intercontig_hq_contacts_html = '<span class="fail">{0}</span>'
 
         if self.good_usable_reads:
-            self.usable_hq_gt_5k_html = '<span class="pass">{0}</span>'
+            self.usable_hq_gt_5k_html = '<span>{0}</span>'
         else:
-            self.usable_hq_gt_5k_html = '<span class="fail">{0}</span>'
+            self.usable_hq_gt_5k_html = '<span>{0}</span>'
+        
+        if self.good_usable_reads_per_million:
+            self.usable_hq_gt_5k__per_million_html = '<span class="pass">{0}</span>'
+        else:
+            self.usable_hq_gt_5k__per_million_html = '<span class="fail">{0}</span>'
 
         # noninformative reads breakdown
         if not self.bad_noninformative_read_pairs:
@@ -833,6 +780,8 @@ class HiCQC(object):
                                          self.min_intercontig_contact_percentage
         self.good_usable_reads         = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k']) > \
                                          self.min_usable_reads_per_contig
+        self.good_usable_reads_per_million = float(self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million']) > \
+                                         self.min_usable_reads_per_contig_per_million
 
         # noninformative read breakdown
         # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
@@ -873,12 +822,6 @@ class HiCQC(object):
             self.out_stats ({str: str}): Mapping of stat keys to formatted strings.
         '''
 
-
-        if self.stats['extrapolated_dup_rate'] > 0:
-            extrap_dup_rate = self.stats['extrapolated_dup_rate'] * 100
-        else:
-            extrap_dup_rate = self.stats['extrapolated_dup_rate']
-
         # Dict of key --> (value, fmt) pairs for items that aren't counts
         self.other_stats = {
                             'N50': (self.N50, '{:,}'),
@@ -887,8 +830,6 @@ class HiCQC(object):
                             'contigs_greater_5k': (len(self.contigs_greater_5k), '{:,}'),
                             'total_length': (self.total_length, '{:,}'),
                             'total_reads': (self.stats['total_reads'], '{:,}'),
-                            'target_read_total': (self.stats['target_read_total'], '{:,}'),
-                            'extrapolated_dup_rate': (extrap_dup_rate, '{:.2f}%'),
                             'judgment': (self.judge_html, '{}'),
                             'qc_purpose': (self.qc_purpose, '{}'),
                             'same_strand_threshold': (100.0 * self.min_same_strand_hq_percentage, '{}'),
@@ -897,10 +838,17 @@ class HiCQC(object):
                             'long_contacts_threshold': (100.0 * self.min_long_contact_percentage, '{}'),
                             'intercontig_hq_contacts_threshold': (100.0 * self.min_intercontig_contact_percentage, '{}'),
                             'usable_hq_gt_5k_threshold': (self.min_usable_reads_per_contig, '{}'),
+                            'min_usable_reads_per_contig_per_million_threshold': (self.min_usable_reads_per_contig_per_million, '{}'),
                             'high_dupe_threshold': (100.0 * self.max_dupe_percentage * self.allowed_dupe_percentage, '{}'),
                             'many_zero_dist_threshold': (100.0 * self.max_zero_dist_percentage, '{}'),
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
+                            'alignment_command_line': (self.bwa_command, '{}'),
+                            'samblaster': (self.samblaster, '{}'),
+                            'lib_enzyme': (', '.join(self.lib_enzyme), '{}'),
+                            'ref_assembly': (self.ref_assembly, '{}'),
+                            'fwd_hic_reads': (self.fwd_hic_reads, '{}'),
+                            'rev_hic_reads': (self.rev_hic_reads, '{}'),
                             }
         self.out_stats = {}
         for key, (num, denom) in self.to_percents.items():
@@ -939,6 +887,7 @@ class HiCQC(object):
         self.out_stats['long_contacts_html'] = self.long_contacts_html.format(self.out_stats['perc_pairs_intra_hq_gt10kbp'])
         self.out_stats['intercontig_hq_contacts_html'] = self.intercontig_hq_contacts_html.format(self.out_stats['perc_intercontig_pairs_hq_gt10kbp'])
         self.out_stats['usable_hq_gt_5k_html'] = self.usable_hq_gt_5k_html.format(self.out_stats['proximo_usable_rp_hq_per_ctg_gt_5k'])
+        self.out_stats['usable_hq_gt_5k_per_million_html'] = self.usable_hq_gt_5k__per_million_html.format(self.out_stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'])
         # noninformative breakdown
         self.out_stats['high_dupe_html'] = self.high_dupe_html.format(self.out_stats['perc_duplicate_reads'])
         self.out_stats['many_zero_dist_pairs_html'] = self.many_zero_dist_pairs_html.format(self.out_stats['perc_zero_dist_pairs'])
@@ -957,7 +906,6 @@ class HiCQC(object):
         '''
 
         ('Histograms written to:', self.paths['long_hist'], self.paths['short_hist'], self.paths['log_log_hist'])
-        self.logger.info('Duplicate saturation curve written to: {}'.format(self.paths['dup_sat_curve']))
 
         self.logger.info('Number of contigs (more is harder):')
         self.logger.info(self.out_stats['contigs'])
@@ -1021,10 +969,6 @@ class HiCQC(object):
               self.out_stats['total_reads'],
               self.out_stats['perc_duplicate_reads'])
               )
-
-        self.logger.info('Percent duplicated at {} reads: {} ' \
-                         '(-1 if insufficient to estimate)'.format(self.out_stats['target_read_total'],
-                                                                   self.out_stats['extrapolated_dup_rate']))
 
         if count_diff_refname_stub:
             self.logger.info('Count of read pairs with mates mapping to different reference groupings, ' \
@@ -1091,7 +1035,8 @@ class HiCQC(object):
             'custom-header': [
                 ('Accept-Encoding', 'gzip')
             ],
-            'no-outline': None
+            'no-outline': None,
+            'enable-local-file-access': ''
         }
 
         if quiet:
@@ -1101,10 +1046,9 @@ class HiCQC(object):
         style_path = os.path.join(self.paths['script_dir'], "collateral", "style.css")
 
         if not os.path.exists(template_path):
-            UserWarning("Can't find markdown template at {}! Exitting...".format(
-                qc_repo_path)
+            raise FileNotFoundError("Can't find markdown template at {}! Exitting...".format(
+                template_path)
             )
-            sys.exit(1)
 
         with open(template_path) as template_fh:
             template_string = template_fh.read()
@@ -1139,8 +1083,6 @@ def parse_args():
     parser.add_argument('--make_report', '-r', default=False, action='store_true',
                         help='Whether to export results in a PDF report. Requires that the QC script be' \
                              'in the same directory as the QC repo\'s collateral directory. Default: False.')
-    parser.add_argument('--target_read_total', type=int, default=100000000,
-                        help='Total read count for duplicate read extrapolation (Default: %(default)s)')
     parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50],
                         help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40],
@@ -1152,6 +1094,8 @@ def parse_args():
                         help='JSON file containing QC thresholds (Default: %(default)s)')
     parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')
+    parser.add_argument('--lib_enzyme', default=['unspecified'], nargs='+', type=str,
+                        help='Name of the enzyme(s) used for Hi-C library preparation.')
 
     args = parser.parse_args()
 
@@ -1176,11 +1120,11 @@ if __name__ == "__main__":
                thresholds_file=args.thresholds,
                rp_stats=args.rp_stats,
                mq_stats=args.mq_stats,
-               edist_stats=args.edist_stats
+               edist_stats=args.edist_stats,
+               lib_enzyme=args.lib_enzyme
                )
 
     QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
-    QC.plot_dup_saturation()
     QC.pass_judgement()
     QC.html_from_judgement()
     QC.plot_histograms()

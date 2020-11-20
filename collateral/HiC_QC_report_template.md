@@ -3,9 +3,18 @@
 
 # Hi-C Library QC Report
 
+## Input Data
+
+| File Type &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | File Name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp;         |
+|:------------------| :--------------------|
+| BAM File          | {bamname}         |
+| Assembly File     | {ref_assembly}    | 
+| Foward Hi-C Reads     | {fwd_hic_reads}    | 
+| Reverse Hi-C Reads     | {rev_hic_reads}    | 
+
 ## {qc_purpose} Sufficiency
 
-| Label                                                    | Library statistics             | Expected values                               |
+| Label                                                  | Library statistics             | Expected values                               |
 | :-----------   |:-----------------:| --------------------:|
 | Subjective Hi-C library judgment                         | {judgment}                     | See Judgment           |
 | Same strand high-quality* (HQ) read pairs (RPs)          | {same_strand_hq_html}    | > {same_strand_threshold}%   |
@@ -23,17 +32,14 @@
 | Label                                         | Library statistics             | Expected values                               |
 | :-----------   |:-----------------:| --------------------:|
 | Fraction of HQ RPs >10KB apart (CTGs >10KB)*      | {long_contacts_html} | > {long_contacts_threshold}%                                  |
-| Fraction of HQ RPs Intercontig on CTGs >10KB**    | {intercontig_hq_contacts_html}       | > {intercontig_hq_contacts_threshold}%                                   |
-| Clustering usable HQ reads per contig (CTGs >5KB)***         | {usable_hq_gt_5k_html}          | > {usable_hq_gt_5k_threshold}                               |
+| Fraction of HQ RPs Intercontig (CTGs >10KB)**    | {intercontig_hq_contacts_html}       | > {intercontig_hq_contacts_threshold}%                                   |
+| Informative HQ RPs per-contig per-1M-RPs (CTGs >5KB)***         | {usable_hq_gt_5k_per_million_html}          | > {min_usable_reads_per_contig_per_million_threshold}                               |
 
 <div class="small center">
 <br />
 *The proportion of <em>read pairs that span at least 10kbp</em>, out of all read pairs that map (a) with high-quality, (b) to the same contig, (c) where that contig is at least 10kbp long.<br>
 **The proportion of <em>read pairs mapping to two different contigs each greater than 10kbp</em>, out of all read pairs that map with high-quality.<br>
-***The average number of usable high-quality read pairs per contig, for contigs greater than 5kbp. Read pairs are "usable" if they map (a) with high-quality, (b) to different contigs, (c) where each of
-those contigs are greater than 5kbp and (c) both mappings are high-quality.<br>
-<br />
-See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
+***The average number of HQ reads, per contig <em>among contigs at least 5kbp in length</em>, per million read pairs, that are informative for identifying contigs which belong on the same chromosome.<br>
 </div>
 
 ## Noninformative Read Pair Breakdown
@@ -50,8 +56,6 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 <br />
 *Note that the sum of informative and noninformative read pairs is not 100% because read pairs with mapping distance between 1 and 10 Kbp are not classified as either informative or noninformative.<br>
 Because noninformative reads can belong to more than one category, these numbers may sum to a value larger than the overall noninformative read pair amount at the top of the report.<br>
-<br />
-See below for information on differences between Phase Genomics Hi-C libraries and traditional Hi-C libraries.
 </div>
 
 
@@ -62,6 +66,9 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | Label                        | Assembly statistics   |
 |:-----------------------------|-------------------------:|
 | BAM file                     | {bamname}             |
+| Foward Hi-C Reads     | {fwd_hic_reads}    |
+| Reverse Hi-C Reads     | {rev_hic_reads}    |
+| Assembly file                | {ref_assembly}        |
 | Assembly size                | {total_length}        |
 | Contig (CTG) N50             | {N50}                 |
 | CTGs                         | {contigs}             |
@@ -76,17 +83,21 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 | :-----------                                             | --------------------:| --------------------:|
 | Total read pairs (RPs) analyzed                          | {total_read_pairs}             | N/A                                           |
 | High quality (HQ) RPs                                    | {perc_hq_rp}                   | N/A                                           |
+| Clustering usable HQ reads per contig (CTGs >5KB)*         | {usable_hq_gt_5k_html}          | > {usable_hq_gt_5k_threshold}                               |
 | RPs >10KB apart                                          | {perc_pairs_greater_10k}       | 1-15%                     |
 | RPs >10KB apart (CTGs >10KB)                             | {perc_pairs_greater_10k_on_contigs_greater_10k} | 1-15%    |
 | Intercontig RPs                                          | {perc_intercontig_pairs}       | 10-60% (contigs) 1-20% (chromosomes)      |
 | Intercontig HQ RPs                                       | {perc_intercontig_pairs_hq}       | 10-60% (contigs) 1-20% (chromosomes)      |
 | Same strand RPs                                          | {perc_pairs_on_same_strand}    | 2-50%                          |
 | Split reads                                              | {perc_split_reads}             | 1-10% (PG libraries) 30%+ (other libraries) |
-| Duplicate reads (extrapolated)*                          | {extrapolated_dup_rate}        | 0-50%                               |
+| Alignment Parameters                                     | {alignment_command_line}       | N/A      
+| Samblaster Parameters                                    | {samblaster}                   | N/A
+| Restriction Enzyme(s)                                    | {lib_enzyme}                   | N/A
 </center>
 
 <div class="small center">
-*Extrapolated to {target_read_total} RPs. If extrapolation fails, it will be -1%.<br>
+<br />
+*The average number of usable high-quality read pairs per contig, for contigs greater than 5kbp. Read pairs are "usable" if they map (a) with high-quality, (b) to different contigs, (c) where each of those contigs are greater than 5kbp and (d) both mappings are high-quality.<br>
 </div>
 
 <div class="pagebreak"> </div>
@@ -98,11 +109,6 @@ See below for information on differences between Phase Genomics Hi-C libraries a
 
 !["Log-log interaction histogram (counts)"]({log_log_hist})
 !["Log-log interaction histogram (density)"]({log_log_norm_hist})
-
-<div class="pagebreak"> </div>
-## Duplicate read saturation curve
-
-!["Duplicate read saturation curve"]({dup_sat_curve})
 
 <div class="pagebreak"> </div>
 ## Alignment distance statistics and plots
@@ -136,10 +142,6 @@ This innovation improves mappability and increases the amount of useful data, an
 **IMPORTANT NOTE: THE DUPLICATE FLAG IS NOT SET BY DEFAULT IN A BAM FILE. YOU NEED TO EXPLICITLY SET IT BY E.G. RUNNING SAMBLASTER OR PICARD MARKDUPLICATES ON YOUR BAM FILE. IF THE PERCENT OF DUPLICATES IS EXACTLY ZERO, IT PROBABLY MEANS THAT THE FLAG HAS NOT BEEN SET.**
 
 Sequencing libraries frequently contain duplicate reads due to PCR or optical issues. These are generally considered to be non-informative because they are chemical artifacts rather than biological signal, and are thus typically excluded from further analysis. Higher percentages of duplicate reads are also correlated with low library complexity and poor library performance, making the percentage of duplicate reads a useful quality control measure.
-
-Also, because we often recommend sequencing a few million read pairs for QC prior to a full sequencing run, it is helpful to project the amount of duplicate reads a full run might generate. To do this, we attempt to fit a curve to the rate at which duplicates are observed in a library, and then project the percentage of duplicates that would be expected in a deeper sequencing run. This projection is a reasonably useful heuristic, but it is not a guarantee that the true duplicate rate will be near a specific value. QC sequencing data with a very low number of reads or which mapped well at a very low rate can distort this calculation. We attempt to identify low confidence calculations and report that we could not extrapolate the expected duplicate frequency when it is possible to do so.
-
-We use the function `f(x) = V * x / (x + K)` to fit V and K, then extrapolate to the target number of reads ({target_read_total} RPs).
 
 ### Unmapped reads
 A high percent of unmapped reads may indicate sequence is missing from the reference, the reads are mapped to the wrong reference, or the sample is contaminated.
