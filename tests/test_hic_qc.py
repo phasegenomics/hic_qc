@@ -444,7 +444,6 @@ class MyTestCase(unittest.TestCase):
     def test_empty_bam(self):
         bamfile = self.input_dir + "abc_test.empty.bam"
         self.QCtmp.parse_bam(bamfile, max_read_pairs=1000)
-        self.QCtmp.plot_dup_saturation()
         self.QCtmp.pass_judgement()
         self.QCtmp.html_from_judgement()
         self.QCtmp.plot_histograms()
