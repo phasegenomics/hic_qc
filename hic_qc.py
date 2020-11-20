@@ -317,6 +317,7 @@ class HiCQC(object):
                 elif token_proc.endswith('_r2.fastq') or token_proc.endswith('_r2.fq') \
                     or token_proc.endswith('_r2.fastq.gz') or token_proc.endswith('_r2.fq.gz'):
                     self.rev_hic_reads = os.path.basename(token)
+            self.rev_hic_reads = self.fwd_hic_reads
             if self.fwd_hic_reads == self.rev_hic_reads:
                 self.fwd_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.fwd_hic_reads)
                 self.rev_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.rev_hic_reads)
@@ -523,7 +524,7 @@ class HiCQC(object):
         if len(self.contigs_greater_5k) > 0:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
-            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (self.stats['total_read_pairs'] / 1e6)
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (self.stats['total_read_pairs'] / 1e6) * len(self.refs)
         else:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = 0
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 0
