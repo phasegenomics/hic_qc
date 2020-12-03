@@ -523,7 +523,7 @@ class HiCQC(object):
         if len(self.contigs_greater_5k) > 0:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
-            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (self.stats['total_read_pairs'] / 1e6) * len(self.contigs_greater_5k)
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (self.stats['total_read_pairs'] / 1e6)
         else:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = 0
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 0
