@@ -323,11 +323,15 @@ class HiCQC(object):
                     self.rev_hic_reads = os.path.basename(token)
                     full_rev_reads = token.strip()
             files_matched = False
+            if os.path.exists(full_fwd_reads) and os.path.exists(full_rev_reads):
+                #do a shallow check first - if the file stats don't match, the files don't match, so don't do a full comparison
+                if filecmp.cmp(full_fwd_reads, full_rev_reads, shallow=True) and filecmp.cmp(full_fwd_reads, full_rev_reads):
+                    files_matched = True
             if os.path.exists(self.fwd_hic_reads) and os.path.exists(self.rev_hic_reads):
                 #do a shallow check first - if the file stats don't match, the files don't match, so don't do a full comparison
                 if filecmp.cmp(self.fwd_hic_reads, self.rev_hic_reads, shallow=True) and filecmp.cmp(self.fwd_hic_reads, self.rev_hic_reads):
                     files_matched = True
-            if self.fwd_hic_reads == self.rev_hic_reads or files_matched:
+            if files_matched or (self.fwd_hic_reads is not None and self.fwd_hic_reads == self.rev_hic_reads) or (full_fwd_reads is not None and full_fwd_reads == full_rev_reads):
                 self.fwd_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.fwd_hic_reads)
                 self.rev_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.rev_hic_reads)
                      
