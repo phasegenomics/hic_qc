@@ -317,12 +317,10 @@ class HiCQC(object):
                 elif token_proc.endswith('_r1.fastq') or token_proc.endswith('_r1.fq') \
                     or token_proc.endswith('_r1.fastq.gz') or token_proc.endswith('_r1.fq.gz'):
                     self.fwd_hic_reads = os.path.basename(token)
-                    print('fwd', token)
                     full_fwd_reads = token.strip()
                 elif token_proc.endswith('_r2.fastq') or token_proc.endswith('_r2.fq') \
                     or token_proc.endswith('_r2.fastq.gz') or token_proc.endswith('_r2.fq.gz'):
                     self.rev_hic_reads = os.path.basename(token)
-                    print('rev', token)
                     full_rev_reads = token.strip()
             files_matched = False
             if os.path.exists(full_fwd_reads) and os.path.exists(full_rev_reads):
