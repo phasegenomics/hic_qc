@@ -593,7 +593,7 @@ class HiCQC(object):
             plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=50, edgecolor='black', color='red')
 
             ax.set_ylim(0.5, max(num_dists * 2, 1))
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
             plt.ylabel('Number of reads')
@@ -610,7 +610,7 @@ class HiCQC(object):
             plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=range(0, 20000, 500), edgecolor='black', color='red')
             ax.set_xlim(0, 20000)
             ax.set_ylim(0.5, num_pairs * 2)
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
             plt.ylabel('Number of reads')
@@ -638,7 +638,7 @@ class HiCQC(object):
                                       50),
                      log=True, edgecolor='black', color='red')
             ax.set_ylim(0.5, max(num_pairs * 2, 1))
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.xscale('log')
             plt.xlim(left=1)
             plt.title(title_string)
@@ -671,7 +671,7 @@ class HiCQC(object):
                                       50),
                      log=True, edgecolor='black', color='red', density=True)
             ax.set_ylim(0.0001, 1.0)
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.xscale('log')
             plt.xlim(left=1)
             plt.title(title_string)
