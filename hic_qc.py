@@ -324,14 +324,14 @@ class HiCQC(object):
                     full_rev_reads = token.strip()
             files_matched = False
             if os.path.exists(full_fwd_reads) and os.path.exists(full_rev_reads):
-                #do a shallow check first - if the file stats don't match, the files don't match, so don't do a full comparison
-                if filecmp.cmp(full_fwd_reads, full_rev_reads, shallow=True) and filecmp.cmp(full_fwd_reads, full_rev_reads):
+                if filecmp.cmp(full_fwd_reads, full_rev_reads, shallow=True):
                     files_matched = True
             if os.path.exists(self.fwd_hic_reads) and os.path.exists(self.rev_hic_reads):
                 #do a shallow check first - if the file stats don't match, the files don't match, so don't do a full comparison
-                if filecmp.cmp(self.fwd_hic_reads, self.rev_hic_reads, shallow=True) and filecmp.cmp(self.fwd_hic_reads, self.rev_hic_reads):
+                if filecmp.cmp(self.fwd_hic_reads, self.rev_hic_reads, shallow=True):
                     files_matched = True
-            if files_matched or (self.fwd_hic_reads is not None and self.fwd_hic_reads == self.rev_hic_reads) or (full_fwd_reads is not None and full_fwd_reads == full_rev_reads):
+            if files_matched or (self.fwd_hic_reads is not None and self.fwd_hic_reads == self.rev_hic_reads) or (full_fwd_reads is not None and full_fwd_reads == full_rev_reads) \
+                or (self.fwd_hic_reads == "forward Hi-C reads not found") or (self.rev_hic_reads == "forward Hi-C reads not found"):
                 self.fwd_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.fwd_hic_reads)
                 self.rev_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.rev_hic_reads)
                      
