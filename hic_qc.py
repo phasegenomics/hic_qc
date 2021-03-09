@@ -17,6 +17,7 @@ import pysam
 import numpy as np
 import argparse
 import os
+import filecmp
 import logging
 import matplotlib
 from collections import Counter
@@ -306,6 +307,8 @@ class HiCQC(object):
             self.fwd_hic_reads = "forward Hi-C reads not found"
             self.rev_hic_reads = "reverse Hi-C reads not found"
             bwa_command_elements = self.bwa_command_line.split()
+            full_fwd_reads = None
+            full_rev_reads = None
             for token in bwa_command_elements:
                 token_proc = token.strip().lower()
                 if token_proc.endswith('.fasta') or token_proc.endswith('.fa') or token_proc.endswith('.fna') \
@@ -314,10 +317,21 @@ class HiCQC(object):
                 elif token_proc.endswith('_r1.fastq') or token_proc.endswith('_r1.fq') \
                     or token_proc.endswith('_r1.fastq.gz') or token_proc.endswith('_r1.fq.gz'):
                     self.fwd_hic_reads = os.path.basename(token)
+                    full_fwd_reads = token.strip()
                 elif token_proc.endswith('_r2.fastq') or token_proc.endswith('_r2.fq') \
                     or token_proc.endswith('_r2.fastq.gz') or token_proc.endswith('_r2.fq.gz'):
                     self.rev_hic_reads = os.path.basename(token)
-            if self.fwd_hic_reads == self.rev_hic_reads:
+                    full_rev_reads = token.strip()
+            files_matched = False
+            if os.path.exists(full_fwd_reads) and os.path.exists(full_rev_reads):
+                if filecmp.cmp(full_fwd_reads, full_rev_reads, shallow=True):
+                    files_matched = True
+            if os.path.exists(self.fwd_hic_reads) and os.path.exists(self.rev_hic_reads):
+                #do a shallow check first - if the file stats don't match, the files don't match, so don't do a full comparison
+                if filecmp.cmp(self.fwd_hic_reads, self.rev_hic_reads, shallow=True):
+                    files_matched = True
+            if files_matched or (self.fwd_hic_reads is not None and self.fwd_hic_reads == self.rev_hic_reads) or (full_fwd_reads is not None and full_fwd_reads == full_rev_reads) \
+                or (self.fwd_hic_reads == "forward Hi-C reads not found") or (self.rev_hic_reads == "reverse Hi-C reads not found"):
                 self.fwd_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.fwd_hic_reads)
                 self.rev_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.rev_hic_reads)
                      
@@ -579,7 +593,7 @@ class HiCQC(object):
             plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=50, edgecolor='black', color='red')
 
             ax.set_ylim(0.5, max(num_dists * 2, 1))
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
             plt.ylabel('Number of reads')
@@ -596,7 +610,7 @@ class HiCQC(object):
             plt.hist(list(self.dists.keys()), weights=list(self.dists.values()), bins=range(0, 20000, 500), edgecolor='black', color='red')
             ax.set_xlim(0, 20000)
             ax.set_ylim(0.5, num_pairs * 2)
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.title(title_string)
             plt.xlabel('Distance between read pair mates in Hi-C mapping (same contig)')
             plt.ylabel('Number of reads')
@@ -624,7 +638,7 @@ class HiCQC(object):
                                       50),
                      log=True, edgecolor='black', color='red')
             ax.set_ylim(0.5, max(num_pairs * 2, 1))
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.xscale('log')
             plt.xlim(left=1)
             plt.title(title_string)
@@ -657,7 +671,7 @@ class HiCQC(object):
                                       50),
                      log=True, edgecolor='black', color='red', density=True)
             ax.set_ylim(0.0001, 1.0)
-            plt.yscale('log', nonposy='clip')
+            plt.yscale('log', nonpositive='clip')
             plt.xscale('log')
             plt.xlim(left=1)
             plt.title(title_string)
@@ -696,7 +710,10 @@ class HiCQC(object):
 
         # driving metrics
         if self.good_same_strand:
-            self.same_strand_hq_html = '<span class="pass">{0}</span>'
+            if float(self.stats['pairs_on_same_strand_hq']) / max(self.stats['pairs_intracontig_hq'], 1) > 0.999:
+                self.same_strand_hq_html = '<span class="mixed-results">{0}</span>'
+            else:
+                self.same_strand_hq_html = '<span class="pass">{0}</span>'
         else:
             self.same_strand_hq_html = '<span class="fail">{0}</span>'
 
