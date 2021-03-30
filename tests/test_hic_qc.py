@@ -20,6 +20,8 @@ from __future__ import print_function
 from __future__ import division
 
 import os
+import pathlib
+import shutil
 import sys
 import unittest
 import hic_qc
@@ -30,22 +32,27 @@ try:
 except NameError:
     FileNotFoundError = IOError
 
+DIRNAME = os.path.dirname(__file__)
+COLLATERAL_DIR = DIRNAME + "/collateral/"
+INPUT_DIR = COLLATERAL_DIR + "input/"
+OUTPUT_DIR = COLLATERAL_DIR + "output/"
+OUTFILE_PREFIX = OUTPUT_DIR + "Read_mate_dist"
+BAMFILE = INPUT_DIR + "abc_test.bam"
+
 class MyTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.dirname = os.path.dirname(__file__)
-        self.collateral_dir = self.dirname + "/collateral/"
-        self.input_dir = self.collateral_dir + "input/"
-        self.output_dir = self.collateral_dir + "output/"
-        self.output_prefix = self.output_dir + "Read_mate_dist"
+
+        if not os.path.exists(OUTPUT_DIR):
+            os.makedirs(OUTPUT_DIR)
+
         num_reads = 1000
-        bamfile = self.input_dir + "abc_test.bam"
+
         count_diff_refname_stub = False
 
-        QC = hic_qc.HiCQC()
+        QC = hic_qc.HiCQC(outfile_prefix=OUTFILE_PREFIX)
         QC.logger.setLevel("ERROR")
-        QC.output_prefix = self.output_prefix
-        QC.parse_bam(bamfile, max_read_pairs=num_reads)
+        QC.parse_bam(BAMFILE, max_read_pairs=num_reads)
         self.QC = QC
         self.stats = QC.stats
         # self.stat_dict, total_reads, num_dupes = hic_qc.parse_bam_file(
@@ -64,7 +71,7 @@ class MyTestCase(unittest.TestCase):
         self.example_read.set_tag("XS", 0)
 
     def setUp(self):
-        self.QCtmp = hic_qc.HiCQC()
+        self.QCtmp = hic_qc.HiCQC(outfile_prefix=OUTFILE_PREFIX)
         self.QCtmp.allowed_dupe_percentage = 0.5
 
         # Default stats
@@ -88,8 +95,9 @@ class MyTestCase(unittest.TestCase):
         self.QCtmp.stats['unmapped_reads'] = 400 # 10%
         self.QCtmp.stats['mapq0_reads'] = 800 # 20%
 
-    def tearDown(self):
-        pass
+    @classmethod
+    def tearDownClass(self):
+        shutil.rmtree(OUTPUT_DIR)
 
     # all manually measured in the BAM file...
     def test_count_diff_chr_pairs(self):
@@ -445,7 +453,7 @@ class MyTestCase(unittest.TestCase):
         self.assertTrue(self.QCtmp.judge_bad)
 
     def test_empty_bam(self):
-        bamfile = self.input_dir + "abc_test.empty.bam"
+        bamfile = INPUT_DIR + "abc_test.empty.bam"
         self.QCtmp.parse_bam(bamfile, max_read_pairs=1000)
         self.QCtmp.pass_judgement()
         self.QCtmp.html_from_judgement()
