@@ -169,6 +169,9 @@ class MyTestCase(unittest.TestCase):
         else:
             return True
 
+    def test_plot_histograms(self):
+        self.QC.plot_histograms()
+
     def test_pass_judgement_sufficient(self):
         '''should pass'''
         # major denominators
