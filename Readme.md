@@ -9,7 +9,7 @@ The most informative Hi-C reads are the ones that are long-distance contacts, or
 Hi-C connectivity drops off in approximately a power-law with increasing linear sequence distance. Consequently, one expects Hi-C reads to follow a characteristic distribution, wherein there is a spike of many read pairs at distances close to zero, which drops off smoothly (in log space) with increasing distance. If there are odd spikes or discontinuities, or if there are few long-distance contacts, there may be a problem either with the library or the assembly.
 
 ## Dependencies
-* python 3.6+
+* python 3.6
 * numpy
 * pysam
 * matplotlib
