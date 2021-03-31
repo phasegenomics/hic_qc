@@ -323,7 +323,8 @@ class HiCQC(object):
                     self.rev_hic_reads = os.path.basename(token)
                     full_rev_reads = token.strip()
             files_matched = False
-            if os.path.exists(full_fwd_reads) and os.path.exists(full_rev_reads):
+            if full_fwd_reads is not None and os.path.exists(full_fwd_reads) and \
+               full_rev_reads is not None and os.path.exists(full_rev_reads):
                 if filecmp.cmp(full_fwd_reads, full_rev_reads, shallow=True):
                     files_matched = True
             if os.path.exists(self.fwd_hic_reads) and os.path.exists(self.rev_hic_reads):
@@ -334,7 +335,7 @@ class HiCQC(object):
                 or (self.fwd_hic_reads == "forward Hi-C reads not found") or (self.rev_hic_reads == "reverse Hi-C reads not found"):
                 self.fwd_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.fwd_hic_reads)
                 self.rev_hic_reads = '<span class="mixed-results">{0}</span>'.format(self.rev_hic_reads)
-                     
+
         else:
             self.bwa_command = 'BWA command not found'
 
@@ -737,7 +738,7 @@ class HiCQC(object):
             self.usable_hq_gt_5k_html = '<span>{0}</span>'
         else:
             self.usable_hq_gt_5k_html = '<span>{0}</span>'
-        
+
         if self.good_usable_reads_per_million:
             self.usable_hq_gt_5k__per_million_html = '<span class="pass">{0}</span>'
         else:

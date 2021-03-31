@@ -48,6 +48,9 @@ class MyTestCase(unittest.TestCase):
 
         num_reads = 1000
 
+        self.regular_header = BAMFILE
+        self.interleaved_header = INPUT_DIR + "interleaved_header.bam"
+
         count_diff_refname_stub = False
 
         QC = hic_qc.HiCQC(outfile_prefix=OUTFILE_PREFIX)
@@ -167,6 +170,14 @@ class MyTestCase(unittest.TestCase):
 
         self.QCtmp.update_read_stats(self.example_read)
         self.assertEqual(self.QCtmp.stats['split_reads'], 1)
+
+    def test_extract_header_info(self):
+        with pysam.AlignmentFile(self.regular_header) as bam_fh:
+            self.QCtmp.extract_header_info(bam_fh.header)
+
+    def test_extract_header_info_interleaved(self):
+        with pysam.AlignmentFile(self.interleaved_header) as bam_fh:
+            self.QCtmp.extract_header_info(bam_fh.header)
 
     def test_python_version(self):
         '''Confirms that PYTHON version in Travis CI env matches expectation'''
