@@ -1098,9 +1098,8 @@ def parse_args():
                         help='Can be used to QC differently given reference name formatting. For internal use.')
     parser.add_argument('--outfile_prefix', '-o', default='Read_mate_dist', type=str,
                         help='Path to which to write plots to (PNG suffix will be attached).')
-    parser.add_argument('--make_report', '-r', default=False, action='store_true',
-                        help='Whether to export results in a PDF report. Requires that the QC script be' \
-                             'in the same directory as the QC repo\'s collateral directory. Default: False.')
+    parser.add_argument('--disable_report', '-d', action='store_true',
+                        help='Disable PDF report generation (Default: %(default)s).')
     parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50],
                         help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40],
@@ -1150,4 +1149,5 @@ if __name__ == "__main__":
     QC.log_stats()
     QC.write_stat_table()
     QC.write_dists_file()
-    QC.write_pdf_report()
+    if not args.disable_report:
+        QC.write_pdf_report()
