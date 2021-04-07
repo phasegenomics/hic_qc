@@ -18,7 +18,7 @@ install:
   - if [[ "$PYTHON" == "default" ]]; then
       conda env create -n test-environment --file env.yml;
     else
-      conda create -q -n test-environment python=$PYTHON pysam numpy scipy matplotlib wkhtmltopdf pdfkit markdown;
+      conda create -q -n test-environment python=$PYTHON pysam=0.15 numpy scipy matplotlib=3.3 wkhtmltopdf pdfkit markdown;
     fi
   - source activate test-environment
   - python --version
