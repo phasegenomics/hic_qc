@@ -339,7 +339,7 @@ class HiCQC(object):
         else:
             self.bwa_command = 'BWA command not found'
 
-        if 'PG' in header and 'samblaster ' in header['PG'][1]['CL']:
+        if 'PG' in header and len(header['PG']) > 1 and 'samblaster ' in header['PG'][1]['CL']:
             self.samblaster = header['PG'][1]['CL']
         else:
              self.samblaster = 'samblaster command not found'
