@@ -302,7 +302,7 @@ class HiCQC(object):
         # TODO: add more robust logic to different BAM headers, and/or comment the assumptions made in this code
         if 'PG' in header and 'bwa' in header['PG'][0]['CL']:
             self.bwa_command_line = header['PG'][0]['CL']
-            self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
+            self.bwa_command = re.search(r'(bwa)[^//]*', self.bwa_command_line).group()
             self.ref_assembly = "reference assembly not found"
             self.fwd_hic_reads = "forward Hi-C reads not found"
             self.rev_hic_reads = "reverse Hi-C reads not found"
