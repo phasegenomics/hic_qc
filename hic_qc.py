@@ -302,7 +302,10 @@ class HiCQC(object):
         # TODO: add more robust logic to different BAM headers, and/or comment the assumptions made in this code
         if 'PG' in header and 'bwa' in header['PG'][0]['CL']:
             self.bwa_command_line = header['PG'][0]['CL']
-            self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
+            if 'bwa-mem2' in self.bwa_command_line:
+                self.bwa_command = re.search(r'(bwa-mem2 )[^//]*', self.bwa_command_line).group()
+            else:
+                self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
             self.ref_assembly = "reference assembly not found"
             self.fwd_hic_reads = "forward Hi-C reads not found"
             self.rev_hic_reads = "reverse Hi-C reads not found"
@@ -339,7 +342,7 @@ class HiCQC(object):
         else:
             self.bwa_command = 'BWA command not found'
 
-        if 'PG' in header and 'samblaster ' in header['PG'][1]['CL']:
+        if 'PG' in header and len(header['PG']) > 1 and 'samblaster ' in header['PG'][1]['CL']:
             self.samblaster = header['PG'][1]['CL']
         else:
              self.samblaster = 'samblaster command not found'
@@ -1098,9 +1101,8 @@ def parse_args():
                         help='Can be used to QC differently given reference name formatting. For internal use.')
     parser.add_argument('--outfile_prefix', '-o', default='Read_mate_dist', type=str,
                         help='Path to which to write plots to (PNG suffix will be attached).')
-    parser.add_argument('--make_report', '-r', default=False, action='store_true',
-                        help='Whether to export results in a PDF report. Requires that the QC script be' \
-                             'in the same directory as the QC repo\'s collateral directory. Default: False.')
+    parser.add_argument('--disable_report', '-d', action='store_true',
+                        help='Disable PDF report generation (Default: %(default)s).')
     parser.add_argument('--rp_stats', nargs='+', default=[0, 1, 2, 5, 10, 20, 50],
                         help='List of distances in Kbp to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--mq_stats', nargs='+', default=[0, 1, 10, 20, 30, 40],
@@ -1150,4 +1152,5 @@ if __name__ == "__main__":
     QC.log_stats()
     QC.write_stat_table()
     QC.write_dists_file()
-    QC.write_pdf_report()
+    if not args.disable_report:
+        QC.write_pdf_report()
