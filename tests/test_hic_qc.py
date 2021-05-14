@@ -480,5 +480,16 @@ class MyTestCase(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             self.QCtmp.write_pdf_report(quiet=True)
 
+    def test_mem2_bam_header(self):
+        mem2_bam = INPUT_DIR + "abc_test.mem2.nosamblaster.bam"
+        self.QCtmp.parse_bam(mem2_bam, max_read_pairs=1000)
+        self.assertTrue(self.QCtmp.bwa_command.startswith('bwa-mem2'))
+
+    def test_no_samblaster_header(self):
+        mem2_bam = INPUT_DIR + "abc_test.mem2.nosamblaster.bam"
+        self.QCtmp.parse_bam(mem2_bam, max_read_pairs=1000)
+        self.assertEqual(self.QCtmp.samblaster, 'samblaster command not found')
+
+
 if __name__ == '__main__':
     unittest.main()
