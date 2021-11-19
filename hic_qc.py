@@ -517,7 +517,7 @@ class HiCQC(object):
 
     def is_high_qual_pair(self, a, b):
         return min(a.mapping_quality, b.mapping_quality) >= 20 and \
-               max(a.get_tag('NM'), b.get_tag('NM') <= 5) and \
+               max(a.get_tag('NM'), b.get_tag('NM')) <= 5 and \
                not a.is_duplicate and not b.is_duplicate
 
     def update_dup_stats(self):
