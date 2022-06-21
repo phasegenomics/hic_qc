@@ -1,6 +1,6 @@
 pysam==0.14.1
 matplotlib==3.0
-numpy==1.13.3
+numpy==1.22.0
 scipy==1.1.0
 pdfkit==0.6.1
 markdown==2.6.11
