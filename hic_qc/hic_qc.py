@@ -1120,15 +1120,7 @@ def parse_args():
 
     return args
 
-def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
-    '''estimate the desired number of reads total based on the observed reads'''
-
-    target_num = len(refs) * target  # desired among-contig
-    diff_rate = float(diff_contig) / float(num_pairs)  # rate of among-contig per read pair
-    total_num = target_num / diff_rate
-    return int(total_num)
-
-if __name__ == "__main__":
+def main():
     args = parse_args()
     dirname = os.path.dirname(args.outfile_prefix)
     if dirname != '' and not os.path.exists(dirname):
@@ -1153,3 +1145,14 @@ if __name__ == "__main__":
     QC.write_dists_file()
     if not args.disable_report:
         QC.write_pdf_report()
+
+def estimate_required_num_reads(diff_contig, refs, num_pairs, target=600.0):
+    '''estimate the desired number of reads total based on the observed reads'''
+
+    target_num = len(refs) * target  # desired among-contig
+    diff_rate = float(diff_contig) / float(num_pairs)  # rate of among-contig per read pair
+    total_num = target_num / diff_rate
+    return int(total_num)
+
+if __name__ == "__main__":
+    main()

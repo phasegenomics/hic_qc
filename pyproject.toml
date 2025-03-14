@@ -13,3 +13,6 @@ where = ["."]
 [tool.setuptools-git-versioning]
 enabled = true
 template = "v{tag}"
+
+[project.scripts]
+hic_qc = "hic_qc:main"
