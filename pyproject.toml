@@ -1,15 +1,35 @@
 [project]
 name = "hic_qc"
 description = "Quality assessment for Hi-C libraries"
+readme = "README.md"
+requires-python = ">=3.8"
 dynamic = ["version"]
+dependencies = [
+  "numpy",
+  "pysam",
+  "matplotlib",
+  "markdown",
+  "pdfkit",
+  "scipy",
+]
 
 [build-system]
-requires = ["setuptools >= 64.0.0", "setuptools-git-versioning<2"]
+requires = [
+  "setuptools>=64.0.0",
+  "setuptools-git-versioning<2"
+]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["hic_qc*"]
 
 [tool.setuptools-git-versioning]
 enabled = true
-template = "v{tag}"
+template = "{tag}"
+
+[project.scripts]
+hic-qc = "hic_qc.hic_qc:main"

@@ -9,31 +9,33 @@
 # creates files in the working directory with relevant plots, also text files of statistics.
 # flip -r flag  (assuming you have dependencies) to make a PDF report with everything together.
 
+from __future__ import print_function
+from __future__ import division
+
 import argparse
 from collections import Counter
 import filecmp
-import importlib.metadata
 import logging
-import markdown as md
 import os
 import re
-import sys
 
+import markdown as md
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pdfkit
 import pysam
-from scipy import optimize
+from statistics import median
+from scipy.stats import trim_mean
 
+from _version import get_versions
+__version__ = get_versions()['version']
 
-matplotlib.use('Agg')
-HICQC_VERSION = importlib.metadata.version('hic_qc')
-
-#try:
-#    FileNotFoundError
-#except NameError:
-#    FileNotFoundError = IOError
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
 
 # default QC thresholds if there is no thresholds file
 DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.015
@@ -47,6 +49,9 @@ DEFAULT_MAX_DUPE_PERCENTAGE                     =   0.40
 DEFAULT_MAX_ZERO_DIST_PERCENTAGE                =   0.20
 DEFAULT_MAX_ZERO_MAPQ0_PERCENTAGE               =   0.20
 DEFAULT_MAX_UNMAPPED_PERCENTAGE                 =   0.10
+
+COVERAGE_BIN_SIZE = int(1e6)
+AUTOSOMES = [f"chr{x}" for x in list(range(1, 23))]
 
 def calc_nxx(header, xx=50):
     '''Calculate the NXX (typically N50) of an assembly given a pysam.AlignmentHeader object.
@@ -82,7 +87,8 @@ class HiCQC(object):
     '''
 
     def __init__(self, outfile_prefix='Read_mate_dist', sample_type='genome', thresholds_file=None,
-                 rp_stats=None, mq_stats=None, edist_stats=None, lib_enzyme=None):
+                 rp_stats=None, mq_stats=None, edist_stats=None, lib_enzyme=None, coverage_bin_size=COVERAGE_BIN_SIZE,
+                 autosomes=AUTOSOMES, disable_coverage=False, skip_pairs=0, disable_report=False):
         '''Initialize metrics for later extraction and conversion.
         '''
         logging.basicConfig(format="[%(name)s - %(asctime)s] %(message)s", level=logging.INFO)
@@ -91,9 +97,6 @@ class HiCQC(object):
         self.sample_type = sample_type.lower()
         self.qc_purpose = 'Unknown'
         self.lib_enzyme = lib_enzyme if lib_enzyme is not None else ['undefined']
-        self.ref_assembly = "reference assembly not found"
-        self.fwd_hic_reads = "forward Hi-C reads not found"
-        self.rev_hic_reads = "reverse Hi-C reads not found"
 
         if self.sample_type == 'metagenome':
             self.qc_purpose = 'Metagenome Deconvolution'
@@ -175,8 +178,13 @@ class HiCQC(object):
         self.to_round = set([
                              'proximo_usable_rp_per_ctg_gt_5k',
                              'proximo_usable_rp_hq_per_ctg_gt_5k',
-                             'proximo_usable_rp_hq_per_ctg_gt_5k_per_million'
+                             'proximo_usable_rp_hq_per_ctg_gt_5k_per_million',
                              ])
+        self.disable_coverage = disable_coverage
+        self.disable_report = disable_report
+        if not self.disable_coverage:
+            self.to_round.add('coverage_center')
+            self.to_round.add('coverage_total')
 
         self.convert_to_pairs = set(['unmapped_reads', 'split_reads', 'duplicate_reads', 'mapq0_reads'])
 
@@ -188,11 +196,13 @@ class HiCQC(object):
         self.dists = Counter()
         self.total_array = []
         self.non_dup_array = []
+        self.coverage_bin_size = coverage_bin_size
+        self.autosomes = autosomes
+        self.skip_pairs = skip_pairs
+
+        self.out_stats = dict()
 
         if rp_stats is not None and mq_stats is not None and edist_stats is not None:
-            rps = []
-            mqs = []
-            edists = []
             self.mapping_dict = {}
             rp_stats = sorted(map(lambda x: int(1000 * x), rp_stats))
             mq_stats = sorted(map(int, mq_stats))
@@ -212,6 +222,32 @@ class HiCQC(object):
             self.mapping_dict = None
             self.rp_array = None
 
+    def pair_generator(self):
+        """Pair alignment records and yield them with a generator.
+
+        Uses:
+            self.alignment_file (str): Path to alignment file
+            self.open_mode (str): Open mode for alignment file (See MODE_DICT)
+        Yields:
+            (read_a, read_b) (pysam.AlignedSegment, pysam.AlignedSegment): Primary alignments for next read pair
+        """
+        with pysam.AlignmentFile(self.paths['bamfile']) as reader:
+            read_a = None
+            read_b = None
+
+            for read in reader:
+                if read.is_secondary or read.is_supplementary:
+                    continue
+                elif read_a is None:
+                    read_a = read
+                elif read.query_name == read_a.query_name:
+                    read_b = read
+                    yield (read_a, read_b)
+                    read_a = None
+                    read_b = None
+                else:
+                    read_a = read
+
     def parse_bam(self, bamfile, max_read_pairs=-1):
         '''Extract QC metrics from a specified bam file. It requires a read name sorted bam file.
         By default, it will parse all reads in the bam file, but a limit can be specified by max_read_pairs.
@@ -230,33 +266,31 @@ class HiCQC(object):
 
         a = None
         b = None
-        i = 0
 
         with pysam.AlignmentFile(self.paths['bamfile']) as bam_fh:
             self.extract_header_info(bam_fh.header)
+            if not self.disable_coverage:
+                self.make_coverage_bins(bam_fh.header)
 
-            for read in bam_fh:
-                if read.is_secondary or read.is_supplementary:
-                    continue
-                if a is None:
-                    a = read
-                    continue
-                if max_read_pairs != -1 and i / 2 > max_read_pairs:
-                    break
+        pair_generator = self.pair_generator()
+        for i, (a, b) in enumerate(pair_generator):
+            if i < self.skip_pairs:
+                continue
+            if i == max_read_pairs + self.skip_pairs:
+                break
+            self.process_pair(a, b)
+            if i % 1000 == 0:
+                self.update_dup_stats()
 
-                if read.query_name == a.query_name:
-                    b = read
-                    self.process_pair(a, b)
-                    a = None
-                    b = None
-                else:
-                    a = read
+    def make_coverage_bins(self, header):
+        contigs = {x["SN"]: x["LN"] for x in header["SQ"]}
+        self.coverage_bins = dict()
+        for chrom in self.autosomes:
+            if chrom not in contigs:
+                raise ValueError(f"Chromosome {chrom} not present in bam header. Is this mapped to a human reference?")
+            length = contigs[chrom]
+            self.coverage_bins[chrom] = [0 for x in range(0, length, self.coverage_bin_size)]
 
-                if i % 1000 == 0:
-                    self.update_dup_stats()
-                i += 1
-
-        self.finalize_stats()
 
     def extract_header_info(self, header, xx=50):
         '''Extract reference names, calculate N50, get total assembly length, and get set of contigs > 10kbp from a pysam header.
@@ -308,6 +342,9 @@ class HiCQC(object):
                 self.bwa_command = re.search(r'(bwa-mem2 )[^//]*', self.bwa_command_line).group()
             else:
                 self.bwa_command = re.search(r'(bwa )[^//]*', self.bwa_command_line).group()
+            self.ref_assembly = "reference assembly not found"
+            self.fwd_hic_reads = "forward Hi-C reads not found"
+            self.rev_hic_reads = "reverse Hi-C reads not found"
             bwa_command_elements = self.bwa_command_line.split()
             full_fwd_reads = None
             full_rev_reads = None
@@ -360,6 +397,10 @@ class HiCQC(object):
         self.update_read_stats(a)
         self.update_read_stats(b)
 
+        if not self.disable_coverage:
+            self.update_coverage_stats(a)
+            self.update_coverage_stats(b)
+
         if self.is_noninformative_read_pair(a, b):
             self.stats['noninformative_read_pairs'] += 1
         elif self.is_informative_pair(a, b):
@@ -384,6 +425,35 @@ class HiCQC(object):
             self.stats['split_reads'] += 1
         if read.is_duplicate:
             self.stats['duplicate_reads'] += 1
+
+    def is_good_coverage_read(self, read, min_mapq=1, max_edist=5):
+        """Determine whether a read passes quality filters for coverage
+        Args:
+            read (pysam.AlignedSegment): Read to apply filters to
+        Returns:
+            good_read (bool): Whether or not read passes filters.
+        """
+        if read.is_secondary or read.is_supplementary or read.is_duplicate or read.is_unmapped:
+            good_read = False
+        elif read.mapping_quality < min_mapq:
+            good_read = False
+        elif read.has_tag("NM") and read.get_tag("NM") > max_edist:
+            good_read = False
+        elif read.reference_name not in self.autosomes:
+            good_read = False
+        else:
+            good_read = True
+        return good_read
+
+    def update_coverage_stats(self, read):
+        '''Update coverage stats based on given read.
+        Args:
+            read (pysam.AlignedSegment): read to extract stats from
+        '''
+
+        if self.is_good_coverage_read(read):
+            bin_index = read.reference_start // self.coverage_bin_size
+            self.coverage_bins[read.reference_name][bin_index] += 1
 
     def update_mapped_pair_stats(self, a, b):
         '''Update mapped pair stats given a pair of reads.
@@ -540,7 +610,7 @@ class HiCQC(object):
         if len(self.contigs_greater_5k) > 0:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = self.stats['proximo_usable_rp'] / len(self.contigs_greater_5k)
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = self.stats['proximo_usable_rp_hq'] / len(self.contigs_greater_5k)
-            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (self.stats['total_read_pairs'] / 1e6)
+            self.stats['proximo_usable_rp_hq_per_ctg_gt_5k_per_million'] = self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] / (max(self.stats['total_read_pairs'], 1) / 1e6)
         else:
             self.stats['proximo_usable_rp_per_ctg_gt_5k'] = 0
             self.stats['proximo_usable_rp_hq_per_ctg_gt_5k'] = 0
@@ -552,17 +622,32 @@ class HiCQC(object):
         # We are stricter on wanting a low number of dupes when it looks like we are only looking at a QC amount of sequencing (<10M read pairs)
         self.allowed_dupe_percentage = 1.0 if self.stats['total_read_pairs'] > 1e7 else 0.5
 
-    def write_mapping_stats(self):
-        with open('{}.mapping_stats.tsv'.format(self.paths['outfile_prefix']), 'w') as outfile:
-            print('edist', 'mapq', 'min_size', 'count', sep='\t', file=outfile)
-            for min_size in self.rp_stats:
-                for mapq in self.mq_stats:
-                    for ed in self.edist_stats:
-                        count = self.mapping_dict[min_size][mapq][ed]
-                        print(ed, mapq, min_size, count, sep='\t', file=outfile)
+        if not self.disable_coverage:
+            self.process_coverage_stats()
+            self.stats['coverage_center'] = self.center_coverage
+            self.stats['coverage_total'] = self.total_coverage
 
-        if self.mapping_dict is not None:
-            self.write_mapping_stats()
+    def get_centered_coverage(self, cut_prop=0.25):
+        '''Center coverage values using trimmed mean of median autosome coverage.
+        Arguments:
+            cut_prop (float): proportion of distribution to cut from both ends.
+        Uses:
+            self.coverage_bins (dict(str, list(int))): Data structure for coverage counts by bin
+        Sets:
+            self.center_coverage (float): Mean coverage of median autosome.
+            self.centered_coverage_bins (dict(str, list(float))): Data structure for centered coverage values by bin.
+        '''
+        trimmed_means = [trim_mean(x, cut_prop) for x in self.coverage_bins.values()]
+        self.center_coverage = median(trimmed_means)
+        self.centered_coverage_bins = {
+            chrom: np.asarray(self.coverage_bins[chrom], dtype=float) / max(self.center_coverage, 1)
+            for chrom in self.autosomes
+        }
+
+    def process_coverage_stats(self):
+        '''Compute coverage quality metric from coverage bin counts'''
+        self.total_coverage = sum([sum(v) for v in self.coverage_bins.values()])
+        self.get_centered_coverage()
 
     def write_mapping_stats(self):
         with open('{}.mapping_stats.tsv'.format(self.paths['outfile_prefix']), 'w') as outfile:
@@ -825,8 +910,6 @@ class HiCQC(object):
         self.judge_good = self.good_same_strand
         self.judge_bad  = not self.good_informative_read_pairs
 
-        self.html_from_judgement()
-
     def stringify_stats(self):
         '''Convert stats to output dictionary with pretty strings and percents.
 
@@ -863,18 +946,18 @@ class HiCQC(object):
                             'many_zero_dist_threshold': (100.0 * self.max_zero_dist_percentage, '{}'),
                             'many_zero_mapq_threshold': (100.0 * self.max_zero_mapq0_percentage, '{}'),
                             'many_unmapped_threshold': (100.0 * self.max_unmapped_percentage, '{}'),
-                            'alignment_command_line': (self.bwa_command, '{}'),
+                            'alignment_command_line': (self.bwa_command.replace('\\t',' '), '{}'),
                             'samblaster': (self.samblaster, '{}'),
                             'lib_enzyme': (', '.join(self.lib_enzyme), '{}'),
                             'ref_assembly': (self.ref_assembly, '{}'),
                             'fwd_hic_reads': (self.fwd_hic_reads, '{}'),
                             'rev_hic_reads': (self.rev_hic_reads, '{}'),
                             }
-        self.out_stats = {}
+
         for key, (num, denom) in self.to_percents.items():
             try:
                 self.out_stats[key] = '{:.2f}%'.format((self.stats[num] / self.stats[denom]) * 100)
-            except ZeroDivisionError as e:
+            except ZeroDivisionError:
                 self.out_stats[key] = 'NaN'
 
         for key in self.to_round:
@@ -903,6 +986,7 @@ class HiCQC(object):
         self.out_stats['same_strand_hq_html'] = self.same_strand_hq_html.format(self.out_stats['perc_pairs_on_same_strand_hq'])
         self.out_stats['informative_read_pairs_html'] = self.informative_read_pairs_html.format(self.out_stats['perc_informative_read_pairs'])
         self.out_stats['noninformative_read_pairs_html'] = self.noninformative_read_pairs_html.format(self.out_stats['perc_noninformative_read_pairs'])
+
         # other good metrics
         self.out_stats['long_contacts_html'] = self.long_contacts_html.format(self.out_stats['perc_pairs_intra_hq_gt10kbp'])
         self.out_stats['intercontig_hq_contacts_html'] = self.intercontig_hq_contacts_html.format(self.out_stats['perc_intercontig_pairs_hq_gt10kbp'])
@@ -914,7 +998,7 @@ class HiCQC(object):
         self.out_stats['many_unmapped_reads_html'] = self.many_unmapped_reads_html.format(self.out_stats['perc_unmapped_reads'])
         self.out_stats['many_zero_mapq_reads_html'] = self.many_zero_mapq_reads_html.format(self.out_stats['perc_mapq0_reads'])
 
-        self.out_stats['version'] = HICQC_VERSION
+        self.out_stats['version'] = __version__
 
     def log_stats(self, count_diff_refname_stub=False):
         '''Log statistical summary.
@@ -925,7 +1009,10 @@ class HiCQC(object):
             count_diff_refname_stub (bool): Whether we are counting the contig name stub differences.
         '''
 
-        ('Histograms written to:', self.paths['long_hist'], self.paths['short_hist'], self.paths['log_log_hist'])
+        self.logger.info("Histograms written to: %s %s %s",
+                 self.paths.get('long_hist'),
+                 self.paths.get('short_hist'),
+                 self.paths.get('log_log_hist'))
 
         self.logger.info('Number of contigs (more is harder):')
         self.logger.info(self.out_stats['contigs'])
@@ -940,21 +1027,21 @@ class HiCQC(object):
         self.logger.info(self.out_stats['total_length'])
 
         self.logger.info('Counts of zero distances (many is a sign of bad prep):')
-        self.logger.info('{} of total {} {}'.format(
+        self.logger.info('{} of total {} {}%'.format(
               self.out_stats['zero_dist_pairs'],
               self.out_stats['total_read_pairs'],
               self.out_stats['perc_zero_dist_pairs'])
               )
 
         self.logger.info('Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):')
-        self.logger.info('{} of total {} {}'.format(
+        self.logger.info('{} of total {} {}%'.format(
               self.out_stats['pairs_greater_10k'],
               self.out_stats['total_read_pairs'],
               self.out_stats['perc_pairs_greater_10k'])
               )
 
         self.logger.info('Proportion of reads mapping to contigs > 10 Kbp with inserts > 10 Kbp:')
-        self.logger.info('{} of total {} {}'.format(
+        self.logger.info('{} of total {} {}%'.format(
               self.out_stats['pairs_greater_10k_on_contigs_greater_10k'],
               self.out_stats['pairs_on_contigs_greater_10k'],
               self.out_stats['perc_pairs_greater_10k_on_contigs_greater_10k'])
@@ -962,21 +1049,21 @@ class HiCQC(object):
 
         self.logger.info('Count of read pairs with mates mapping to different chromosomes/contigs ' \
                          '(sign of good prep IF same genome):')
-        self.logger.info('{} of total {} {}'.format(
+        self.logger.info('{} of total {} {}%'.format(
               self.out_stats['intercontig_pairs'],
               self.out_stats['total_read_pairs'],
               self.out_stats['perc_intercontig_pairs'])
               )
 
         self.logger.info('Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):')
-        self.logger.info('{} of total {} {}'.format(
+        self.logger.info('{} of total {} {}%'.format(
               self.out_stats['split_reads'],
               self.stats['total_reads'],
               self.out_stats['perc_split_reads'])
               )
 
         self.logger.info('Count of MAPQ zero reads (bad, ambiguously mapped):')
-        self.logger.info('{} of total {} {}'.format(
+        self.logger.info('{} of total {} {}%'.format(
               self.out_stats['mapq0_reads'],
               self.out_stats['total_reads'],
               self.out_stats['perc_mapq0_reads'])
@@ -984,7 +1071,7 @@ class HiCQC(object):
 
         self.logger.info('Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; ' \
                          'WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):')
-        self.logger.info('{} of total {} {}'.format(
+        self.logger.info('{} of total {} {}%'.format(
               self.out_stats['duplicate_reads'],
               self.out_stats['total_reads'],
               self.out_stats['perc_duplicate_reads'])
@@ -993,7 +1080,7 @@ class HiCQC(object):
         if count_diff_refname_stub:
             self.logger.info('Count of read pairs with mates mapping to different reference groupings, ' \
                              'e.g. genomes (sign of bad prep potentially):')
-            self.logger.info('{} of total {} {}'.format(
+            self.logger.info('{} of total {} {}%'.format(
                   self.out_stats['different_ref_stub_pairs'],
                   self.out_stats['total_read_pairs'],
                   self.out_stats['perc_different_ref_stub_pairs'])
@@ -1080,7 +1167,27 @@ class HiCQC(object):
                 html_out.write(html)
 
             # print html
-            pdfkit.from_string(html, self.paths['outfile_prefix'] + "_qc_report.pdf", options=options, css=style_path)
+            try:
+                pdfkit.from_string(html, self.paths['outfile_prefix'] + "_qc_report.pdf", options=options, css=style_path)
+            except OSError as e:
+                self.logger.warning(
+                    "PDF generation failed. wkhtmltopdf may not be installed or not in PATH.\n"
+                    "The HTML report was generated successfully.\n"
+                    "To disable PDF generation, rerun with --disable_report.\n"
+                    f"Original error: {e}"
+                )
+    def run(self):
+        self.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
+        self.finalize_stats()
+        self.pass_judgement()
+        self.plot_histograms()
+        self.html_from_judgement()
+        self.stringify_stats()
+        self.log_stats()
+        self.write_stat_table()
+        self.write_dists_file()
+        if not self.disable_report:
+            self.write_pdf_report()
 
 def parse_args():
     '''parse command-line args
@@ -1108,13 +1215,16 @@ def parse_args():
                         help='List of min MQ scores to calculate RP stats for (Default: %(default)s)')
     parser.add_argument('--edist_stats', nargs='+', default=[100, 10, 5, 3, 1, 0],
                         help='List of max edist scores to calculate RP stats for (Default: %(default)s)')
-    parser.add_argument('--version', action='version', version=HICQC_VERSION)
+    parser.add_argument('--version', action='version', version=__version__)
     parser.add_argument('--thresholds', default='{0}/collateral/thresholds.json'.format(os.path.dirname(os.path.realpath(__file__))),
                         help='JSON file containing QC thresholds (Default: %(default)s)')
     parser.add_argument('--sample_type', default='genome', choices=['genome', 'metagenome'],
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')
     parser.add_argument('--lib_enzyme', default=['unspecified'], nargs='+', type=str,
                         help='Name of the enzyme(s) used for Hi-C library preparation.')
+    parser.add_argument('-c', '--disable_coverage', action='store_true', help='Disable coverage binning '
+                        '(Required for non-human references)')
+    parser.add_argument('-s', '--skip_pairs', default=0, type=int, help='Number of read pairs to skip')
 
     args = parser.parse_args()
 
@@ -1140,16 +1250,10 @@ if __name__ == "__main__":
                rp_stats=args.rp_stats,
                mq_stats=args.mq_stats,
                edist_stats=args.edist_stats,
-               lib_enzyme=args.lib_enzyme
+               lib_enzyme=args.lib_enzyme,
+               disable_coverage=args.disable_coverage,
+               skip_pairs=args.skip_pairs,
+               disable_report=args.disable_report
                )
 
-    QC.parse_bam(args.bam_file, max_read_pairs=args.num_reads)
-    QC.pass_judgement()
-    QC.html_from_judgement()
-    QC.plot_histograms()
-    QC.stringify_stats()
-    QC.log_stats()
-    QC.write_stat_table()
-    QC.write_dists_file()
-    if not args.disable_report:
-        QC.write_pdf_report()
+    QC.run()
