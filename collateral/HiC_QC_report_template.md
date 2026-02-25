@@ -1,4 +1,3 @@
-<center>
 <img src="{pg_logo}" alt="Phase Genomics logo" width="200" class="center">
 
 # Hi-C Library QC Report
@@ -77,8 +76,6 @@ Because noninformative reads can belong to more than one category, these numbers
 
 ## Extended Library Statistics
 
-<center>
-
 | Label                                                    | Library statistics             | Expected values                               |
 | :-----------                                             | --------------------:| --------------------:|
 | Total read pairs (RPs) analyzed                          | {total_read_pairs}             | N/A                                           |
@@ -93,7 +90,6 @@ Because noninformative reads can belong to more than one category, these numbers
 | Alignment Parameters                                     | {alignment_command_line}       | N/A      
 | Samblaster Parameters                                    | {samblaster}                   | N/A
 | Restriction Enzyme(s)                                    | {lib_enzyme}                   | N/A
-</center>
 
 <div class="small center">
 <br />

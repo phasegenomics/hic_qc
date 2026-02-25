@@ -33,6 +33,9 @@ cd hic_qc
 conda env create -n hic_qc --file env.minimal.yml
 conda activate hic_qc
 
+# Install dependencies from pip that are not available/reliable in conda
+pip install pdfkit
+
 # Install hic_qc into the environment
 pip install .
 
@@ -44,7 +47,7 @@ PDF generation requires the external `wkhtmltopdf` binary to be installed on you
 If `wkhtmltopdf` is not installed, you can still run `hic_qc` normally by using:
 
 ```bash
-python hic_qc.py --disable_report -b sample.bam
+python3 hic_qc.py --disable_report -b sample.bam
 ```
 
 ## Installing wkhtmltopdf
@@ -77,7 +80,7 @@ wkhtmltopdf --version
 ## Usage
 In the most basic use-case, you can run the script in a terminal
 
-`python hic_qc.py -b input.bam -n num_reads_to_use`
+`python3 hic_qc.py -b input.bam -n num_reads_to_use`
 
 where `input.bam` is your BAM file from aligning Hi-C reads to your reference, and `num_reads_to_use` is just the number of read pairs you want to sample from the BAM file (default 1 million read pairs; assuming there are this many reads in the file).
 
@@ -86,6 +89,8 @@ The script will write plots in PNG format (long, short, and log-log mate distanc
 The script will also quantify some basic QC metrics and print those to the screen.
 
 The script will generate an HTML report of those metrics with the plots embedded, and will attempt to generate a PDF report as well (PDF generation requires `wkhtmltopdf`). To disable PDF generation, use the `--disable_report` flag.
+
+Coverage metrics are computed for autosome-style references when available. For non-human/non-autosome references, coverage metrics are automatically skipped, or you can explicitly disable coverage with `-c` / `--disable_coverage`.
 
 To set the name of the files written out, such as the PNG figures and the report files, set the `-o /path/to/outfile` or `--outfile_prefix /path/to/outfile` parameters.
 

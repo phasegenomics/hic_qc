@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Unit tests for hic_qc.
 
@@ -175,13 +175,22 @@ class MyTestCase(unittest.TestCase):
             self.QCtmp.extract_header_info(bam_fh.header)
 
     def test_python_version(self):
-        """Confirms that PYTHON version in CI env matches expectation."""
-        if "PYTHON" in os.environ:
-            expected_python = os.environ["PYTHON"] if os.environ["PYTHON"] != "default" else "3.6"
-            version_string = "{}.{}".format(*sys.version_info)
-            self.assertEqual(version_string, expected_python)
-        else:
-            return True
+        """Confirms that runtime version is supported."""
+        self.assertGreaterEqual(sys.version_info, (3, 8))
+
+    def test_make_coverage_bins_accepts_numeric_autosomes(self):
+        header = {"SQ": [{"SN": str(i), "LN": 1000} for i in range(1, 23)]}
+        self.QCtmp.make_coverage_bins(header)
+        self.assertFalse(self.QCtmp.disable_coverage)
+        self.assertEqual(self.QCtmp.autosomes[0], "1")
+        self.assertIn("1", self.QCtmp.coverage_bins)
+
+    def test_make_coverage_bins_disables_on_non_autosome_reference(self):
+        header = {"SQ": [{"SN": "contigA", "LN": 1000}, {"SN": "contigB", "LN": 2000}]}
+        self.QCtmp.make_coverage_bins(header)
+        self.assertTrue(self.QCtmp.disable_coverage)
+        self.assertNotIn("coverage_center", self.QCtmp.to_round)
+        self.assertNotIn("coverage_total", self.QCtmp.to_round)
 
     def test_plot_histograms(self):
         self.QC.plot_histograms()

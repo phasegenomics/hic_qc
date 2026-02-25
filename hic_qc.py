@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # takes a bam file and makes a histogram of distances between mate alignments to the
 # reference assembly
@@ -9,12 +9,10 @@
 # creates files in the working directory with relevant plots, also text files of statistics.
 # flip -r flag  (assuming you have dependencies) to make a PDF report with everything together.
 
-from __future__ import print_function
-from __future__ import division
-
 import argparse
 from collections import Counter
 import filecmp
+import importlib.util
 import logging
 import os
 import re
@@ -29,13 +27,19 @@ import pysam
 from statistics import median
 from scipy.stats import trim_mean
 
-from _version import get_versions
-__version__ = get_versions()['version']
-
 try:
-    FileNotFoundError
-except NameError:
-    FileNotFoundError = IOError
+    from _version import get_versions
+    __version__ = get_versions()['version']
+except ImportError:
+    # Allow running directly from source when versioneer artifacts are absent.
+    try:
+        from importlib.metadata import version, PackageNotFoundError
+        try:
+            __version__ = version("hic_qc")
+        except PackageNotFoundError:
+            __version__ = "unknown"
+    except ImportError:
+        __version__ = "unknown"
 
 # default QC thresholds if there is no thresholds file
 DEFAULT_MIN_SAME_STRAND_HQ_PERCENTAGE           =   0.015
@@ -285,9 +289,31 @@ class HiCQC(object):
     def make_coverage_bins(self, header):
         contigs = {x["SN"]: x["LN"] for x in header["SQ"]}
         self.coverage_bins = dict()
+
+        # Accept either chr-prefixed or plain numeric human autosome names.
+        default_autosomes = [f"chr{x}" for x in range(1, 23)]
+        numeric_autosomes = [str(x) for x in range(1, 23)]
+
+        selected_autosomes = None
+        if all(chrom in contigs for chrom in self.autosomes):
+            selected_autosomes = list(self.autosomes)
+        elif all(chrom in contigs for chrom in default_autosomes):
+            selected_autosomes = default_autosomes
+        elif all(chrom in contigs for chrom in numeric_autosomes):
+            selected_autosomes = numeric_autosomes
+
+        if selected_autosomes is None:
+            self.logger.warning(
+                "Autosome-style chromosomes were not found in BAM header; "
+                "disabling coverage metrics for this run."
+            )
+            self.disable_coverage = True
+            self.to_round.discard('coverage_center')
+            self.to_round.discard('coverage_total')
+            return
+
+        self.autosomes = selected_autosomes
         for chrom in self.autosomes:
-            if chrom not in contigs:
-                raise ValueError(f"Chromosome {chrom} not present in bam header. Is this mapped to a human reference?")
             length = contigs[chrom]
             self.coverage_bins[chrom] = [0 for x in range(0, length, self.coverage_bin_size)]
 
@@ -1027,21 +1053,21 @@ class HiCQC(object):
         self.logger.info(self.out_stats['total_length'])
 
         self.logger.info('Counts of zero distances (many is a sign of bad prep):')
-        self.logger.info('{} of total {} {}%'.format(
+        self.logger.info('{} of total {} {}'.format(
               self.out_stats['zero_dist_pairs'],
               self.out_stats['total_read_pairs'],
               self.out_stats['perc_zero_dist_pairs'])
               )
 
         self.logger.info('Count of same-contig read pairs with distance > 10KB (many is a sign of good prep):')
-        self.logger.info('{} of total {} {}%'.format(
+        self.logger.info('{} of total {} {}'.format(
               self.out_stats['pairs_greater_10k'],
               self.out_stats['total_read_pairs'],
               self.out_stats['perc_pairs_greater_10k'])
               )
 
         self.logger.info('Proportion of reads mapping to contigs > 10 Kbp with inserts > 10 Kbp:')
-        self.logger.info('{} of total {} {}%'.format(
+        self.logger.info('{} of total {} {}'.format(
               self.out_stats['pairs_greater_10k_on_contigs_greater_10k'],
               self.out_stats['pairs_on_contigs_greater_10k'],
               self.out_stats['perc_pairs_greater_10k_on_contigs_greater_10k'])
@@ -1049,21 +1075,21 @@ class HiCQC(object):
 
         self.logger.info('Count of read pairs with mates mapping to different chromosomes/contigs ' \
                          '(sign of good prep IF same genome):')
-        self.logger.info('{} of total {} {}%'.format(
+        self.logger.info('{} of total {} {}'.format(
               self.out_stats['intercontig_pairs'],
               self.out_stats['total_read_pairs'],
               self.out_stats['perc_intercontig_pairs'])
               )
 
         self.logger.info('Count of split reads (more is usually good, as indicates presence of Hi-C junction in read):')
-        self.logger.info('{} of total {} {}%'.format(
+        self.logger.info('{} of total {} {}'.format(
               self.out_stats['split_reads'],
               self.stats['total_reads'],
               self.out_stats['perc_split_reads'])
               )
 
         self.logger.info('Count of MAPQ zero reads (bad, ambiguously mapped):')
-        self.logger.info('{} of total {} {}%'.format(
+        self.logger.info('{} of total {} {}'.format(
               self.out_stats['mapq0_reads'],
               self.out_stats['total_reads'],
               self.out_stats['perc_mapq0_reads'])
@@ -1071,7 +1097,7 @@ class HiCQC(object):
 
         self.logger.info('Count of duplicate reads (-1 if insufficient to estimate; duplicates are bad; ' \
                          'WILL ALWAYS BE ZERO UNLESS BAM FILE IS PREPROCESSED TO SET THE DUPLICATES FLAG):')
-        self.logger.info('{} of total {} {}%'.format(
+        self.logger.info('{} of total {} {}'.format(
               self.out_stats['duplicate_reads'],
               self.out_stats['total_reads'],
               self.out_stats['perc_duplicate_reads'])
@@ -1159,12 +1185,42 @@ class HiCQC(object):
 
         with open(template_path) as template_fh:
             template_string = template_fh.read()
-            sub_str = template_string.format(**self.out_stats)  # splat the statistics and path into the markdown, render as html
-            html = md.markdown(sub_str, extensions=['markdown.extensions.tables', 'markdown.extensions.nl2br'])
+            # Splat report fields into markdown template, then render to HTML.
+            sub_str = template_string.format(**self.out_stats)
+            markdown_extensions = ['extra', 'tables', 'nl2br']
+            if importlib.util.find_spec('markdown.extensions.md_in_html') is not None:
+                markdown_extensions.append('md_in_html')
+            html = md.Markdown(extensions=markdown_extensions).convert(sub_str)
 
-            # write out just html
+            # Guard against environments where markdown rendering silently degrades.
+            if ('<h1' not in html and '# ' in sub_str) or ('<table' not in html and '|' in sub_str):
+                self.logger.warning(
+                    "Markdown-to-HTML conversion appears incomplete; retrying with markdown() helper."
+                )
+                html = md.markdown(sub_str, extensions=markdown_extensions)
+
+            with open(style_path) as style_fh:
+                css = style_fh.read()
+
+            html_doc = (
+                "<!doctype html>\n"
+                "<html>\n"
+                "<head>\n"
+                "  <meta charset=\"UTF-8\">\n"
+                "  <title>Hi-C Library QC Report</title>\n"
+                "  <style>\n"
+                f"{css}\n"
+                "  </style>\n"
+                "</head>\n"
+                "<body>\n"
+                f"{html}\n"
+                "</body>\n"
+                "</html>\n"
+            )
+
+            # write out styled html so browser rendering matches PDF styling
             with open(self.paths['outfile_prefix'] + "_qc_report.html", 'w') as html_out:
-                html_out.write(html)
+                html_out.write(html_doc)
 
             # print html
             try:
@@ -1222,8 +1278,7 @@ def parse_args():
                         help='Use QC thresholds for the specified sample type (Default: %(default)s)')
     parser.add_argument('--lib_enzyme', default=['unspecified'], nargs='+', type=str,
                         help='Name of the enzyme(s) used for Hi-C library preparation.')
-    parser.add_argument('-c', '--disable_coverage', action='store_true', help='Disable coverage binning '
-                        '(Required for non-human references)')
+    parser.add_argument('-c', '--disable_coverage', action='store_true', help='Disable coverage binning')
     parser.add_argument('-s', '--skip_pairs', default=0, type=int, help='Number of read pairs to skip')
 
     args = parser.parse_args()

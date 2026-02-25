@@ -69,9 +69,23 @@ tr:nth-child(even) {
   display: block;
   margin-left: auto;
   margin-right: auto;
+  text-align: center;
 }
 
 .centered {
+  text-align: center;
+}
+
+table {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+th, td {
+  text-align: center !important;
+}
+
+h1, h2, h3, h4, h5, h6, p {
   text-align: center;
 }
 
